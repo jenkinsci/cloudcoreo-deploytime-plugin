@@ -1,0 +1,45 @@
+
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:f="/lib/form">
+    <f:section title="CloudCoreo">
+        <f:entry title="${%Add a Team}" description="CloudCoreo ${%Team and server definition}">
+            <f:repeatable var="team" items="${descriptor.getTeams()}" add="Add Team">
+                <table width="100%">
+                    <f:entry title="${%Name your Team}">
+                        <f:textbox value="${team.getKey()}" name="team.teamName"/>
+                    </f:entry>
+                    <f:entry field="teamId" title="${%Your Team ID}">
+                        <f:textbox value="${team.getValue().getTeamId()}" name="team.teamId"/>
+                    </f:entry>
+                    <f:entry field="teamKeyId" title="${%Your CloudCoreo Key ID}">
+                        <f:textbox value="${team.getValue().getTeamKeyId()}" name="team.teamKeyId"/>
+                    </f:entry>
+                    <f:entry field="teamSecretKey" title="Your CloudCoreo Secret Key">
+                        <f:password value="${team.getValue().getTeamSecretKey()}" name="team.teamSecretKey"/>
+                    </f:entry>
+
+                    <f:advanced title="Advanced Settings">
+                        <j:set var="deployTime" value="${team.getValue().getDeployTime()}"/>
+                        <f:entry field="siteDomain" title="Server to communicate with (ex. app.cloudcoreo.com)">
+                            <f:textbox value="${deployTime.getDomain()}" name="team.domain"
+                                       default="app.cloudcoreo.com"/>
+                        </f:entry>
+                        <f:entry field="siteDomainProtocol" title="The protocol of server (ex. https)">
+                            <f:textbox value="${deployTime.getDomainProtocol()}" name="team.domainProtocol"
+                                       default="https"/>
+                        </f:entry>
+                        <f:entry field="siteDomainPort" title="The port of server (ex. 443)">
+                            <f:textbox value="${deployTime.getDomainPort()}" name="team.domainPort" default="443"/>
+                        </f:entry>
+                    </f:advanced>
+
+                    <f:entry>
+                        <div align="right">
+                            <f:repeatableDeleteButton/>
+                        </div>
+                    </f:entry>
+                </table>
+            </f:repeatable>
+        </f:entry>
+    </f:section>
+</j:jelly>

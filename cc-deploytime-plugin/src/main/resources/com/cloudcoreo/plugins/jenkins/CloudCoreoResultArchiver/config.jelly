@@ -1,0 +1,8 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+    <f:entry title="Fail builds on Severity Levels:" field="failOnHigh">
+        <f:checkbox field="blockOnHigh" default="unchecked" title="High" checked="${blockOnHigh}"/><br/>
+        <f:checkbox field="blockOnMedium" default="unchecked" title="Medium" checked="${blockOnMedium}"/><br/>
+        <f:checkbox field="blockOnLow" default="unchecked" title="Low" checked="${blockOnLow}"/>
+    </f:entry>
+</j:jelly>

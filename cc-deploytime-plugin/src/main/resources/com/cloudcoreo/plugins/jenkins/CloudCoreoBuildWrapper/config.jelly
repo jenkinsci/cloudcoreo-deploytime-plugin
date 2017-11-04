@@ -1,0 +1,28 @@
+<?jelly escape-by-default='true'?>
+<j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form">
+  <j:set var="teams" value="${descriptor.getTeams()}"/>
+  <j:set var="blockOnHigh" value="${descriptor.blockOnHigh}"/>
+  <j:set var="blockOnMedium" value="${descriptor.blockOnMedium}"/>
+  <j:set var="blockOnLow" value="${descriptor.blockOnLow}"/>
+  <j:if test="${empty(teams)}">
+    <f:entry title="CloudCoreo Teams">
+      <div class="error">There are no CloudCoreo Teams configured.</div>
+    </f:entry>
+  </j:if>
+  <j:if test="${teams.size() gt 0}">
+    <f:entry title="CloudCoreo Team: ">
+      <select class="setting-input" name="teamName">
+        <j:forEach var="team" items="${teams}">
+          <f:option value="${team.key}" selected="${team.key.equals(instance.getTeamName())}">${team.key}
+          </f:option>
+        </j:forEach>
+      </select>
+    </f:entry>
+      <f:advanced title="Advanced Settings">
+          <f:entry title="Custom Context">
+            <f:textbox field="context" default="${instance.getContext()}"/>
+          </f:entry>
+      </f:advanced>
+  </j:if>
+
+</j:jelly>
