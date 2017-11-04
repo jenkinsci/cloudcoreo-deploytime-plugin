@@ -27,6 +27,11 @@
             <name>Paul Allen</name>
             <timezone>UTC-7</timezone>
         </developer>
+        <developer>
+            <id>armaneous</id>
+            <name>Andrew Armaneous</name>
+            <timezone>UTC-7</timezone>
+        </developer>
     </developers>
 
     <properties>
