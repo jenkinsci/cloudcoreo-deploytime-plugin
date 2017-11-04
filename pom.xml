@@ -11,7 +11,7 @@
     </parent>
 
     <groupId>com.cloudcoreo.plugins</groupId>
-    <artifactId>deploytime-plugin-parent</artifactId>
+    <artifactId>deploytime-parent</artifactId>
     <version>1.0-BETA</version>
     <packaging>pom</packaging>
 
@@ -19,7 +19,7 @@
     <description>Analyze and report infrastructure test failures in real time</description>
     <url>https://wiki.jenkins-ci.org/display/JENKINS/CloudCoreo+DeployTime</url>
     <modules>
-        <module>cc-deploytime-plugin</module>
+        <module>cloudcoreo-deploytime</module>
     </modules>
     <developers>
         <developer>
