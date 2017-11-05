@@ -15,6 +15,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
+import java.security.AccessControlException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -139,8 +140,12 @@ public class DeployTime implements Serializable {
                 date;
 
         String returnPayload = makeRequest(callType, client.target(url), mediaType, message, date, body);
+        JSONObject response = gson.fromJson(returnPayload, JSONObject.class);
+        if (response != null && response.containsKey("status") && response.getString("status").equals("401")) {
+            throw new AccessControlException("Authentication error: user is unauthorized to make API calls.");
+        }
 
-        return gson.fromJson(returnPayload, JSONObject.class);
+        return response;
     }
 
     private String makeRequest(String callType, WebTarget target, String mediaType, String message, String date, String body) {

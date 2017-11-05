@@ -18,6 +18,7 @@ import javax.ws.rs.ProcessingException;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.AccessControlException;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -95,16 +96,16 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
             ContextDisposer.writeSerializedDataToTempFile(workspace, vars, build.getId());
             team.makeAvailable();
         } catch(ProcessingException e) {
-            String message = "CloudCoreo server endpoint is currently unavailable, skipping DeployTime analysis";
+            String message = "\nCloudCoreo server endpoint is currently unavailable, skipping DeployTime analysis\n";
             logger.println(message);
             team.makeUnavailable();
         } catch(IOException | URISyntaxException e) {
-            String message = "Error when serializing and writing data to temporary file, skipping DeployTime analysis";
+            String message = "\nError when serializing and writing data to temporary file, skipping DeployTime analysis\n";
             logger.println(message);
             team.makeUnavailable();
-        } catch(JsonSyntaxException | IllegalStateException e) {
-            String message = "Error retrieving DeployTime ID\n" +
-                    ">> Are your CloudCoreo team ID, access key, and secret access key values correct?";
+        } catch(JsonSyntaxException | AccessControlException | IllegalStateException e) {
+            String message = "\nError retrieving DeployTime ID\n" +
+                    ">> Are your CloudCoreo team ID, access key, and secret access key values correct?\n";
             logger.println(message);
             team.makeUnavailable();
         }
@@ -136,7 +137,6 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
         @Override
         public void tearDown(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener) {
             log.info("finishing CloudCoreo analysis");
-            team.getDeployTime().sendStopContext();
 
             Map<String, String> vars = new HashMap<>();
             vars.put("ccTeam", team.toString());
@@ -144,9 +144,10 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
             vars.put("ccContext", disposerContext);
 
             try {
+                team.getDeployTime().sendStopContext();
                 writeSerializedDataToTempFile(workspace, vars, build.getId());
-            } catch (URISyntaxException | IOException e) {
-                String message = "There was a problem in the teardown of the build, skipping DeployTime analysis";
+            } catch (URISyntaxException | IOException | NullPointerException e) {
+                String message = "\nThere was a problem in the teardown of the build, skipping DeployTime analysis\n";
                 listener.getLogger().println(message);
                 team.makeUnavailable();
             }
