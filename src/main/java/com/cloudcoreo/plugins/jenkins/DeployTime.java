@@ -1,7 +1,6 @@
 package com.cloudcoreo.plugins.jenkins;
 
 import com.cloudcoreo.plugins.jenkins.exceptions.ExecutionFailedException;
-import com.github.dockerjava.api.exception.UnauthorizedException;
 import com.google.gson.Gson;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
@@ -16,6 +15,7 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import java.io.Serializable;
 import java.io.UnsupportedEncodingException;
+import java.security.AccessControlException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -118,7 +118,7 @@ public class DeployTime implements Serializable {
 
     }
 
-    JSONObject sendSignedRequest(String url, String callType, String body) throws UnauthorizedException {
+    JSONObject sendSignedRequest(String url, String callType, String body) {
 
         Gson gson = new Gson();
 
@@ -141,11 +141,11 @@ public class DeployTime implements Serializable {
 
         String returnPayload = makeRequest(callType, client.target(url), mediaType, message, date, body);
         JSONObject response = gson.fromJson(returnPayload, JSONObject.class);
-        if (response.containsKey("status") && response.getString("status").equals("401")) {
-            throw new UnauthorizedException("Authentication error: user is unauthorized to make API calls.");
+        if (response != null && response.containsKey("status") && response.getString("status").equals("401")) {
+            throw new AccessControlException("Authentication error: user is unauthorized to make API calls.");
         }
 
-        return gson.fromJson(returnPayload, JSONObject.class);
+        return response;
     }
 
     private String makeRequest(String callType, WebTarget target, String mediaType, String message, String date, String body) {
