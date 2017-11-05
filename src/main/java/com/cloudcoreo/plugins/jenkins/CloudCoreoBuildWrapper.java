@@ -1,5 +1,6 @@
 package com.cloudcoreo.plugins.jenkins;
 
+import com.github.dockerjava.api.exception.UnauthorizedException;
 import com.google.gson.JsonSyntaxException;
 import hudson.*;
 import hudson.model.AbstractProject;
@@ -102,7 +103,7 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
             String message = "Error when serializing and writing data to temporary file, skipping DeployTime analysis";
             logger.println(message);
             team.makeUnavailable();
-        } catch(JsonSyntaxException | IllegalStateException e) {
+        } catch(JsonSyntaxException | UnauthorizedException | IllegalStateException e) {
             String message = "Error retrieving DeployTime ID\n" +
                     ">> Are your CloudCoreo team ID, access key, and secret access key values correct?";
             logger.println(message);
