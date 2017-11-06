@@ -88,11 +88,6 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
             vars.put("ccContext", ccContext);
             vars.put("deployTimeID", team.getDeployTime().getDeployTimeInstance().getDeployTimeId());
 
-            log.info("CloudCoreo vars have been set:");
-            for (String s : vars.keySet()) {
-                log.info(s + ": " + vars.get(s));
-            }
-
             ContextDisposer.writeSerializedDataToTempFile(workspace, vars, build.getId());
             team.makeAvailable();
         } catch(ProcessingException e) {
