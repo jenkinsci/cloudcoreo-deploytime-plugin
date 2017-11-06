@@ -209,7 +209,9 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
             try {
                 for (int i = 0; i < jsonTeams.size(); i++) {
                     JSONObject instance = jsonTeams.getJSONObject(i);
-                    teams.put(instance.getString("teamName"), new CloudCoreoTeam(instance));
+                    if(!instance.containsValue("")) {
+                        teams.put(instance.getString("teamName"), new CloudCoreoTeam(instance));
+                    }
                 }
             } catch (IllegalArgumentException e) {
                 log.warning(format("Unable to deserialize CloudCoreo teams fom JSON. %s: %s", e.getClass().getSimpleName(), e.getMessage()));
