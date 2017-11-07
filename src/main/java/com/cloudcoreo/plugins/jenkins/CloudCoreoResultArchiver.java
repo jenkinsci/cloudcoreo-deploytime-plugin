@@ -53,6 +53,14 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         return resultsHtml;
     }
 
+    List<ContextTestResult> getRunResults() {
+        return runResults;
+    }
+
+    CloudCoreoTeam getTeam() {
+        return team;
+    }
+
     @DataBoundConstructor
     public CloudCoreoResultArchiver(boolean blockOnHigh, boolean blockOnMedium, boolean blockOnLow) {
         this.blockOnHigh = blockOnHigh;
@@ -108,9 +116,9 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
                 "</tr>";
     }
 
-    void writeResultsHtml(FilePath path, String buildId, List<ContextTestResult> violations) {
+    void writeResultsHtml(FilePath path, String buildId) {
         Map<String, ArrayList<ContextTestResult>> sortedViolations = new HashMap<>();
-        for (ContextTestResult violation : violations) {
+        for (ContextTestResult violation : getRunResults()) {
             ArrayList<ContextTestResult> currentList = sortedViolations.get(violation.getLevel());
             if (currentList == null) {
                 currentList = new ArrayList<>();
@@ -216,14 +224,14 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
             return;
         }
 
-        if (!team.isAvailable()) {
+        if (!getTeam().isAvailable()) {
             String message = "\n>> Skipping CloudCoreo DeployTime analysis because access to server is unavailable.\n";
             outputMessage(logger, message);
             return;
         }
 
         try {
-            team.getDeployTime().sendStopContext();
+            getTeam().getDeployTime().sendStopContext();
         } catch (Exception ex) {
             log.info("sent a stop to a torn down container");
         }
@@ -248,7 +256,7 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         }
 
         try {
-            runResults = team.getDeployTime().getResults();
+            runResults = getTeam().getDeployTime().getResults();
         } catch (Exception e) {
             String message = "\n>> There was a problem getting results, please contact us and share the following info:";
             outputMessage(logger, message);
@@ -257,7 +265,7 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
             return;
         }
 
-        writeResultsHtml(workspace, build.getId(), runResults);
+        writeResultsHtml(workspace, build.getId());
 
         reportResults(logger);
 
@@ -266,11 +274,11 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         }
     }
 
-    private void reportResults(PrintStream logger) {
+    void reportResults(PrintStream logger) {
         String lineDelimiter = "\n**************************************************\n";
         String[] reportLevels = {"HIGH", "MEDIUM", "LOW"};
 
-        if (runResults.size() > 0) {
+        if (getRunResults().size() > 0) {
             logger.println(lineDelimiter);
             logger.println(">>>> CloudCoreo Violations Found");
             logger.println(lineDelimiter);
@@ -291,7 +299,7 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
     private void reportResultLevel(PrintStream logger, String[] levels) {
         boolean printedHeader = false;
         for (String level : levels) {
-            for (ContextTestResult runResult : runResults) {
+            for (ContextTestResult runResult : getRunResults()) {
                 boolean matchedLevel = runResult.getLevel().equalsIgnoreCase(level);
                 if (matchedLevel) {
                     if (!printedHeader) {
@@ -318,8 +326,8 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
                 return;
             }
 
-            runHasTimedOut = team.getDeployTime().contextRunTimedOut();
-            hasRunningJobs = team.getDeployTime().hasRunningJobs();
+            runHasTimedOut = getTeam().getDeployTime().contextRunTimedOut();
+            hasRunningJobs = getTeam().getDeployTime().hasRunningJobs();
 
             if (hasRunningJobs) {
                 msg = "Please wait... The job is currently executing against your cloud objects...";
@@ -339,7 +347,7 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
     }
 
     private boolean shouldBlockBuild() {
-        return blockOnHigh || blockOnMedium || blockOnLow;
+        return getBlockOnHigh() || getBlockOnMedium() || getBlockOnLow();
     }
 
     private boolean levelShouldBlock(String level) {
@@ -347,8 +355,8 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         return level.equals("HIGH") || level.equals("MEDIUM") || level.equals("LOW");
     }
 
-    private boolean hasBlockingFailures() {
-        for (ContextTestResult rr : runResults) {
+    boolean hasBlockingFailures() {
+        for (ContextTestResult rr : getRunResults()) {
             if (shouldBlockBuild() && levelShouldBlock(rr.getLevel())) {
                 return true;
             }
