@@ -87,13 +87,6 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         return (DescriptorImpl) super.getDescriptor();
     }
 
-    @Override
-    public boolean perform(AbstractBuild<?, ?> build, Launcher launcher,
-                           BuildListener listener) throws IOException {
-        perform(build, build.getWorkspace(), launcher, listener);
-        return true;
-    }
-
     private String buildRowHtml(String name, String category, String displayName, String level, String violator, String link) {
         return "<tr>" +
                 "<td><a href=\"" +
