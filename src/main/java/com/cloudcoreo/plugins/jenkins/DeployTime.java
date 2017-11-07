@@ -54,17 +54,17 @@ public class DeployTime implements Serializable {
         this.secretAccessKey = secretAccessKey;
     }
 
-    @SuppressWarnings({"unused", "WeakerAccess"})
+    @SuppressWarnings("WeakerAccess")
     public String getDomain() {
         return domain;
     }
 
-    @SuppressWarnings({"unused", "WeakerAccess"})
+    @SuppressWarnings("WeakerAccess")
     public String getDomainProtocol() {
         return domainProtocol;
     }
 
-    @SuppressWarnings({"unused", "WeakerAccess"})
+    @SuppressWarnings("WeakerAccess")
     public int getDomainPort() {
         return domainPort;
     }
@@ -74,7 +74,7 @@ public class DeployTime implements Serializable {
     }
 
     private String getEndpointURL() {
-        return domainProtocol + "://" + domain + ":" + domainPort;
+        return getDomainProtocol() + "://" + getDomain() + ":" + getDomainPort();
     }
 
     private String getDeployTimeURL() {
@@ -82,18 +82,24 @@ public class DeployTime implements Serializable {
     }
 
     private String getContextToggleURL() {
-        return getEndpointURL() + "/api/devtime/" + deployTimeInstance.getId() + "/";
+        return getEndpointURL() + "/api/devtime/" + getDeployTimeInstance().getId() + "/";
     }
 
     DeployTimeObject getDeployTimeInstance() {
         return deployTimeInstance;
     }
 
-    private String computeHmac1(String data) throws NoSuchAlgorithmException, UnsupportedEncodingException, InvalidKeyException {
-        Mac sha1HMAC = Mac.getInstance("HmacSHA1");
-        SecretKeySpec secret_key = new SecretKeySpec(secretAccessKey.getBytes("UTF-8"), "HmacSHA1");
-        sha1HMAC.init(secret_key);
-        return new String(Base64.encodeBase64(sha1HMAC.doFinal(data.getBytes("UTF-8"))));
+    private String computeHmac1(String data) {
+        try {
+            Mac sha1HMAC = Mac.getInstance("HmacSHA1");
+            SecretKeySpec secret_key = new SecretKeySpec(secretAccessKey.getBytes("UTF-8"), "HmacSHA1");
+            sha1HMAC.init(secret_key);
+            return new String(Base64.encodeBase64(sha1HMAC.doFinal(data.getBytes("UTF-8"))));
+        } catch (NoSuchAlgorithmException | UnsupportedEncodingException | InvalidKeyException e) {
+            log.info(e.getMessage());
+            log.info(Arrays.toString(e.getStackTrace()));
+            return "";
+        }
     }
 
     private String getMD5Hash(String md5) {
@@ -112,10 +118,8 @@ public class DeployTime implements Serializable {
     private String getMediaType(String callType){
         if(callType.equals("POST")){
             return MediaType.APPLICATION_JSON;
-        } else {
-            return "";
         }
-
+        return "";
     }
 
     JSONObject sendSignedRequest(String url, String callType, String body) {
@@ -149,7 +153,7 @@ public class DeployTime implements Serializable {
     }
 
     private String makeRequest(String callType, WebTarget target, String mediaType, String message, String date, String body) {
-        String authHeader = "Hmac " + accessKeyId + ":" + getHmacBase64(message);
+        String authHeader = "Hmac " + accessKeyId + ":" + computeHmac1(message);
 
         if (callType.equals("POST")) {
             return target.request(mediaType)
@@ -165,16 +169,6 @@ public class DeployTime implements Serializable {
                     .readEntity(String.class);
         }
         return "";
-    }
-
-    private String getHmacBase64(String message) {
-        try {
-            return computeHmac1(message);
-        } catch (NoSuchAlgorithmException | UnsupportedEncodingException | InvalidKeyException e) {
-            log.info(e.getMessage());
-            log.info(Arrays.toString(e.getStackTrace()));
-            return "";
-        }
     }
 
 
@@ -201,7 +195,7 @@ public class DeployTime implements Serializable {
     }
 
     boolean hasRunningJobs() throws ExecutionFailedException {
-        Link deployTimeStatus = deployTimeInstance.getStatus();
+        Link deployTimeStatus = getDeployTimeInstance().getStatus();
         JSONObject returnObject = sendSignedRequest(deployTimeStatus.getHref(), deployTimeStatus.getMethod(), null);
         ContextRun job = new ContextRun(returnObject.getJSONObject("status"));
         if (job.hasExecutionFailed()) {
@@ -228,7 +222,7 @@ public class DeployTime implements Serializable {
         JSONObject discoveredObject;
 
         List<ContextTestResult> allResults = new ArrayList<>();
-        Link deployTimeResults = deployTimeInstance.getResults();
+        Link deployTimeResults = getDeployTimeInstance().getResults();
         JSONObject resultJSONObject = sendSignedRequest(deployTimeResults.getHref(), deployTimeResults.getMethod(), null);
         Object resultTest = resultJSONObject.get("results");
 

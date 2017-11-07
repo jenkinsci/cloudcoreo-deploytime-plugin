@@ -37,21 +37,24 @@ public class DeployTimeTest {
         }
 
         private JSONObject getDeployTimeResponse() {
+            String[] linkProperties = {"results", "status", "start", "stop", "team"};
             JSONObject jsonObject = new JSONObject();
             JSONArray jsonArray = new JSONArray();
-            JSONObject resultsLink = new JSONObject();
-            JSONObject statusLink = new JSONObject();
+            JSONObject linkItem;
 
-            resultsLink.put("ref", "results");
-            resultsLink.put("href", "myhref");
-            resultsLink.put("method", "mymethod");
+            for (String property : linkProperties) {
+                linkItem = new JSONObject();
 
-            statusLink.put("ref", "status");
-            statusLink.put("href", new ContextRunTest().getStubbedStatus("running", "OK"));
-            statusLink.put("method", "mymethod");
+                linkItem.put("ref", property);
+                if (property.equals("status")) {
+                    linkItem.put("href", new ContextRunTest().getStubbedStatus("running", "EXECUTING", "OK"));
+                } else {
+                    linkItem.put("href", "myhref");
+                }
+                linkItem.put("method", "mymethod");
 
-            jsonArray.add(resultsLink);
-            jsonArray.add(statusLink);
+                jsonArray.add(linkItem);
+            }
 
             jsonObject.put("devTimeUrl", "url");
             jsonObject.put("devTimeId", "someId");
@@ -65,7 +68,7 @@ public class DeployTimeTest {
 
         private JSONObject getRunningStatusResponse() {
             JSONObject result = new JSONObject();
-            result.put("status", new ContextRunTest().getStubbedStatus("running", "OK"));
+            result.put("status", new ContextRunTest().getStubbedStatus("running", "EXECUTING", "OK"));
             return result;
         }
 
@@ -130,8 +133,28 @@ public class DeployTimeTest {
     }
 
     @Test
-    public void deployTimeInstanceShouldBeSet() {
+    public void deployTimeEndpointShouldBeSet() {
         Assert.assertNotNull(deployTime.getDeployTimeInstance());
+        Assert.assertNotNull(deployTime.getResults());
+        Assert.assertEquals(deployTime.getDomain(), DeployTimeStub.DOMAIN);
+        Assert.assertEquals(deployTime.getDomainPort(), DeployTimeStub.DOMAIN_PORT);
+        Assert.assertEquals(deployTime.getDomainProtocol(), DeployTimeStub.DOMAIN_PROTOCOL);
+    }
+
+    @Test
+    public void deployTimeInstanceShouldBeSet() {
+        DeployTimeObject instance = deployTime.getDeployTimeInstance();
+        Assert.assertNotNull(instance);
+        Assert.assertNotNull(instance.getDeployTimeId());
+        Assert.assertNotNull(instance.getStatus());
+        Assert.assertNotNull(instance.getId());
+        Assert.assertNotNull(instance.getResults());
+        Assert.assertNotNull(instance.getTeam());
+        Assert.assertNotNull(instance.getContext());
+        Assert.assertNotNull(instance.getDeployTimeUrl());
+        Assert.assertNotNull(instance.getStart());
+        Assert.assertNotNull(instance.getStop());
+        Assert.assertNotNull(instance.getTask());
     }
 
     @Test

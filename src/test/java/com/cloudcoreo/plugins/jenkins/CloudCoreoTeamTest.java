@@ -11,18 +11,21 @@ import java.io.IOException;
 public class CloudCoreoTeamTest {
 
     private CloudCoreoTeam team;
+    static final JSONObject SETUP_PARAMS = JSONObject.fromObject(
+            "{" +
+                "teamId: 'myTeamId'," +
+                "teamName: 'myTeamName'," +
+                "teamKeyId: 'myTeamKeyId'," +
+                "teamSecretKey: 'myTeamSecretKey'," +
+                "domain: 'myDomain'," +
+                "domainProtocol: 'myDomainProtocol'," +
+                "domainPort: 0" +
+            "}"
+    );
 
     @Before
     public void setUpTeam() {
-        JSONObject setupParams = new JSONObject();
-        setupParams.put("teamId", "myTeamId");
-        setupParams.put("teamName", "myTeamName");
-        setupParams.put("teamKeyId", "myTeamKeyId");
-        setupParams.put("teamSecretKey", "myTeamSecretKey");
-        setupParams.put("domain", "myDomain");
-        setupParams.put("domainProtocol", "myDomainProtocol");
-        setupParams.put("domainPort", 0);
-        team = new CloudCoreoTeam(setupParams);
+        team = new CloudCoreoTeam(SETUP_PARAMS);
     }
 
     @Test
