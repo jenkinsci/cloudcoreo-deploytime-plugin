@@ -18,7 +18,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Logger;
@@ -126,10 +125,9 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         }
 
         String pathName = filePath.getRemote().replaceAll(" ", "\\\\ ") + "/" + buildId + ".xml";
-        Path path = Paths.get(pathName);
         resultsHtml = buildViolatorTableHtml(allTableSections);
         try {
-            Files.write(path, resultsHtml, Charset.forName("UTF-8"));
+            Files.write(Paths.get(pathName), resultsHtml, Charset.forName("UTF-8"));
         } catch (IOException ex) {
             log.info(ex.getMessage());
         }
