@@ -31,12 +31,10 @@ import java.util.logging.Logger;
 public class DeployTime implements Serializable {
 
     private static final long serialVersionUID = -6742613356269048443L;
-    private static int TIMEOUT_LIMIT = 300;
     public static final Logger log = Logger.getLogger(DeployTime.class.getName());
 
     private boolean hasContextRunStarted;
     private int domainPort;
-    private final Charset encoding = Charset.forName("UTF-8");
     private Date contextStartTimestamp;
     private Date contextStopTimestamp;
     private String domain;
@@ -72,8 +70,10 @@ public class DeployTime implements Serializable {
     }
 
     int getTimeoutLimit() {
-        return TIMEOUT_LIMIT;
+        return 300;
     }
+
+    private Charset getEncoding() { return Charset.forName("UTF-8"); }
 
     private String getEndpointURL() {
         return getDomainProtocol() + "://" + getDomain() + ":" + getDomainPort();
@@ -95,9 +95,9 @@ public class DeployTime implements Serializable {
         String hmac = "HmacSHA1";
         try {
             Mac sha1HMAC = Mac.getInstance(hmac);
-            SecretKeySpec secretKey = new SecretKeySpec(secretAccessKey.getBytes(encoding), hmac);
+            SecretKeySpec secretKey = new SecretKeySpec(secretAccessKey.getBytes(getEncoding()), hmac);
             sha1HMAC.init(secretKey);
-            byte[] bytes = data.getBytes(encoding);
+            byte[] bytes = data.getBytes(getEncoding());
             return Base64.encodeBase64String(sha1HMAC.doFinal(bytes));
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             log.info(e.getMessage());
@@ -109,7 +109,7 @@ public class DeployTime implements Serializable {
     private String getMD5Hash(String md5) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] array = md.digest(md5.getBytes(encoding));
+            byte[] array = md.digest(md5.getBytes(getEncoding()));
             StringBuilder sb = new StringBuilder();
             for (byte byteValue : array) {
                 sb.append(Integer.toHexString((byteValue & 0xFF) | 0x100).substring(1, 3));
