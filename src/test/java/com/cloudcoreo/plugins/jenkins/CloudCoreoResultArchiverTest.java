@@ -65,7 +65,7 @@ public class CloudCoreoResultArchiverTest {
     public void shouldWriteResultsToHTML() throws Exception {
         File file = new File(new URI("file:///tmp"));
         archiver.writeResultsHtml(new FilePath(file), "unittest");
-        Document doc = Jsoup.parse(archiver.getResultsHtml());
+        Document doc = Jsoup.parse(archiver.getResultsHtml().toString());
 
         Assert.assertEquals(51, doc.getAllElements().size());
     }
