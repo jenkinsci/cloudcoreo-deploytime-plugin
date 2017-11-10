@@ -14,7 +14,7 @@ import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.MediaType;
 import java.io.Serializable;
-import java.io.UnsupportedEncodingException;
+import java.nio.charset.Charset;
 import java.security.AccessControlException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
@@ -30,7 +30,6 @@ import java.util.logging.Logger;
 public class DeployTime implements Serializable {
 
     private static final long serialVersionUID = -6742613356269048443L;
-    private static int TIMEOUT_LIMIT = 300;
     public static final Logger log = Logger.getLogger(DeployTime.class.getName());
 
     private boolean hasContextRunStarted;
@@ -70,8 +69,10 @@ public class DeployTime implements Serializable {
     }
 
     int getTimeoutLimit() {
-        return TIMEOUT_LIMIT;
+        return 300;
     }
+
+    private Charset getEncoding() { return Charset.forName("UTF-8"); }
 
     private String getEndpointURL() {
         return getDomainProtocol() + "://" + getDomain() + ":" + getDomainPort();
@@ -90,12 +91,14 @@ public class DeployTime implements Serializable {
     }
 
     private String computeHmac1(String data) {
+        String hmac = "HmacSHA1";
         try {
-            Mac sha1HMAC = Mac.getInstance("HmacSHA1");
-            SecretKeySpec secret_key = new SecretKeySpec(secretAccessKey.getBytes("UTF-8"), "HmacSHA1");
-            sha1HMAC.init(secret_key);
-            return new String(Base64.encodeBase64(sha1HMAC.doFinal(data.getBytes("UTF-8"))));
-        } catch (NoSuchAlgorithmException | UnsupportedEncodingException | InvalidKeyException e) {
+            Mac sha1HMAC = Mac.getInstance(hmac);
+            SecretKeySpec secretKey = new SecretKeySpec(secretAccessKey.getBytes(getEncoding()), hmac);
+            sha1HMAC.init(secretKey);
+            byte[] bytes = data.getBytes(getEncoding());
+            return Base64.encodeBase64String(sha1HMAC.doFinal(bytes));
+        } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             log.info(e.getMessage());
             log.info(Arrays.toString(e.getStackTrace()));
             return "";
@@ -105,14 +108,14 @@ public class DeployTime implements Serializable {
     private String getMD5Hash(String md5) {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] array = md.digest(md5.getBytes());
+            byte[] array = md.digest(md5.getBytes(getEncoding()));
             StringBuilder sb = new StringBuilder();
             for (byte byteValue : array) {
                 sb.append(Integer.toHexString((byteValue & 0xFF) | 0x100).substring(1, 3));
             }
             return sb.toString();
         } catch (NoSuchAlgorithmException ignored) { }
-        return null;
+        return "";
     }
 
     private String getMediaType(String callType){
