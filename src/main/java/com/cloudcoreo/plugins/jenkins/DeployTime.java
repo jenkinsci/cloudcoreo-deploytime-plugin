@@ -1,19 +1,24 @@
 package com.cloudcoreo.plugins.jenkins;
 
+import com.cloudcoreo.plugins.jenkins.exceptions.EndpointUnavailableException;
 import com.cloudcoreo.plugins.jenkins.exceptions.ExecutionFailedException;
 import com.google.gson.Gson;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.apache.commons.codec.binary.Base64;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.client.Client;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.config.CookieSpecs;
+import org.apache.http.client.config.RequestConfig;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.client.methods.HttpRequestBase;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.HttpClients;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.WebTarget;
-import javax.ws.rs.core.MediaType;
-import java.io.Serializable;
+import java.io.*;
 import java.nio.charset.Charset;
 import java.security.AccessControlException;
 import java.security.InvalidKeyException;
@@ -78,7 +83,7 @@ public class DeployTime implements Serializable {
         return getDomainProtocol() + "://" + getDomain() + ":" + getDomainPort();
     }
 
-    private String getDeployTimeURL() {
+    String getDeployTimeURL() {
         return getEndpointURL() + "/api/teams/" + teamId + "/devtime";
     }
 
@@ -114,39 +119,36 @@ public class DeployTime implements Serializable {
                 sb.append(Integer.toHexString((byteValue & 0xFF) | 0x100).substring(1, 3));
             }
             return sb.toString();
-        } catch (NoSuchAlgorithmException ignored) { }
+        } catch (NoSuchAlgorithmException | NullPointerException ignored) { }
         return "";
     }
 
     private String getMediaType(String callType){
         if(callType.equals("POST")){
-            return MediaType.APPLICATION_JSON;
+            return "application/json";
         }
         return "";
     }
 
-    JSONObject sendSignedRequest(String url, String callType, String body) {
-
+    private JSONObject sendSignedRequest(String url, String callType, String body) {
         Gson gson = new Gson();
-
-        Client client = ClientBuilder.newClient();
+        body = (body == null) ? "" : body;
 
         callType = callType.toUpperCase();
         String mediaType = getMediaType(callType);
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
         dateFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
         String date = dateFormat.format(new Date());
-        String bodyToHash = (body == null) ? "" : body;
 
         String message = callType +
                 "\n" +
-                getMD5Hash(bodyToHash) +
+                getMD5Hash(body) +
                 "\n" +
                 mediaType +
                 "\n" +
                 date;
 
-        String returnPayload = makeRequest(callType, client.target(url), mediaType, message, date, body);
+        String returnPayload = makeRequest(callType, url, mediaType, message, date, body);
         JSONObject response = gson.fromJson(returnPayload, JSONObject.class);
         if (response != null && response.containsKey("status") && response.getString("status").equals("401")) {
             throw new AccessControlException("Authentication error: user is unauthorized to make API calls.");
@@ -155,32 +157,75 @@ public class DeployTime implements Serializable {
         return response;
     }
 
-    private String makeRequest(String callType, WebTarget target, String mediaType, String message, String date, String body) {
+    private String makeRequest(String callType, String targetUrl, String mediaType, String message, String date, String body) {
         String authHeader = "Hmac " + accessKeyId + ":" + computeHmac1(message);
+        HttpClient client = HttpClients.custom()
+                .setDefaultRequestConfig(
+                        RequestConfig.custom().setCookieSpec(CookieSpecs.STANDARD).build()
+                ).build();
+        HttpResponse response;
+        StringEntity stringEntity;
+        HttpRequestBase call;
 
-        if (callType.equals("POST")) {
-            return target.request(mediaType)
-                    .header("Authorization", authHeader)
-                    .header("Date", date)
-                    .post(Entity.entity(body, mediaType))
-                    .readEntity(String.class);
-        } else if (callType.equals("GET")) {
-            return target.request()
-                    .header("Authorization", authHeader)
-                    .header("Date", date)
-                    .get()
-                    .readEntity(String.class);
-        }
+        try {
+             stringEntity = new StringEntity(body);
+
+            if (callType.equals("POST")) {
+                HttpPost post = (HttpPost) assignHeaders(new HttpPost(targetUrl), mediaType, authHeader, date);
+                post.setEntity(stringEntity);
+                call = post;
+            } else {
+                call = assignHeaders(new HttpGet(targetUrl), mediaType, authHeader, date);
+            }
+            response = makeHttpCall(client, call);
+
+            return parseResponse(response);
+        } catch (IOException ignore) {}
+
         return "";
     }
 
+    private HttpRequestBase assignHeaders(HttpRequestBase request, String mediaType, String authHeader, String date) {
+        request.addHeader("Content-Type", mediaType);
+        request.addHeader("Authorization", authHeader);
+        request.addHeader("Date", date);
+        return request;
+    }
 
-    void setDeployTimeId(String context, String task) {
+    String parseResponse(HttpResponse response) {
+        InputStreamReader inputReader;
+        StringBuilder buffer = new StringBuilder();
+
+        try {
+            inputReader = new InputStreamReader(response.getEntity().getContent());
+            BufferedReader reader = new BufferedReader(inputReader);
+            String line;
+
+            while ((line = reader.readLine()) != null) {
+                buffer.append(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        return buffer.toString();
+    }
+
+    HttpResponse makeHttpCall(HttpClient client, HttpRequestBase call) throws IOException {
+        return client.execute(call);
+    }
+
+    void setDeployTimeId(String context, String task) throws EndpointUnavailableException {
         JSONObject body = new JSONObject();
         body.put("context", context);
         body.put("task", task);
         JSONObject deployTimeJsonObject = sendSignedRequest(getDeployTimeURL(), "post", body.toString());
-        deployTimeInstance = new DeployTimeObject(deployTimeJsonObject);
+        try {
+            deployTimeInstance = new DeployTimeObject(deployTimeJsonObject);
+        } catch (NullPointerException e) {
+            String message = "\nCloudCoreo server endpoint is currently unavailable, skipping DeployTime analysis\n";
+            throw new EndpointUnavailableException(message);
+        }
         log.info("context set");
     }
 

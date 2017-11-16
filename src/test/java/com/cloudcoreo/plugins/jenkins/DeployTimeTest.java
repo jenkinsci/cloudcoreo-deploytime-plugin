@@ -1,11 +1,16 @@
 package com.cloudcoreo.plugins.jenkins;
 
-import com.cloudcoreo.plugins.jenkins.exceptions.ExecutionFailedException;
+import com.cloudcoreo.plugins.jenkins.exceptions.*;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
+import org.apache.http.HttpResponse;
+import org.apache.http.client.methods.HttpRequestBase;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.apache.http.client.HttpClient;
+
+import java.io.IOException;
 
 @SuppressWarnings("unused")
 public class DeployTimeTest {
@@ -18,25 +23,31 @@ public class DeployTimeTest {
         private static final String DOMAIN_PROTOCOL = "https";
         private static final String ACCESS_KEY_ID = "access-key-id";
         private static final String SECRET_ACCESS_KEY = "secret-access-key";
+        private String url;
 
         DeployTimeStub() {
             super(TEAM_ID, DOMAIN, DOMAIN_PORT, DOMAIN_PROTOCOL, ACCESS_KEY_ID, SECRET_ACCESS_KEY);
         }
 
         @Override
-        JSONObject sendSignedRequest(String url, String callType, String body) {
-            JSONObject response;
-            if (url.equals(getDeployTimeURL())) {
-                response = getDeployTimeResponse();
-            } else if (url.equals(getDeployTimeInstance().getStatus().getHref())) {
-                response = getRunningStatusResponse();
-            } else {
-                response = getResultsResponse();
-            }
-            return response;
+        HttpResponse makeHttpCall(HttpClient client, HttpRequestBase call) throws IOException {
+            url = call.getURI().toString();
+            return null;
         }
 
-        private JSONObject getDeployTimeResponse() {
+        @Override
+        String parseResponse(HttpResponse response) {
+            if (url.equals(getDeployTimeURL())) {
+                return getDeployTimeResponse();
+            } else if (url.equals(getDeployTimeInstance().getStatus().getHref())) {
+                return getRunningStatusResponse();
+            } else if (url.equals(getDeployTimeInstance().getResults().getHref())){
+                return getResultsResponse();
+            }
+            return "{}";
+        }
+
+        private String getDeployTimeResponse() {
             String[] linkProperties = {"results", "status", "start", "stop", "team"};
             JSONObject jsonObject = new JSONObject();
             JSONArray jsonArray = new JSONArray();
@@ -46,11 +57,7 @@ public class DeployTimeTest {
                 linkItem = new JSONObject();
 
                 linkItem.put("ref", property);
-                if (property.equals("status")) {
-                    linkItem.put("href", new ContextRunTest().getStubbedStatus("running", "EXECUTING", "OK"));
-                } else {
-                    linkItem.put("href", "myhref");
-                }
+                linkItem.put("href", property + "myhref");
                 linkItem.put("method", "mymethod");
 
                 jsonArray.add(linkItem);
@@ -63,16 +70,16 @@ public class DeployTimeTest {
             jsonObject.put("task", "mytask");
             jsonObject.put("links", jsonArray);
 
-            return jsonObject;
+            return jsonObject.toString();
         }
 
-        private JSONObject getRunningStatusResponse() {
+        private String getRunningStatusResponse() {
             JSONObject result = new JSONObject();
-            result.put("status", new ContextRunTest().getStubbedStatus("running", "EXECUTING", "OK"));
-            return result;
+            result.put("status", ContextRunTest.getStubbedStatus("running", "EXECUTING", "OK"));
+            return result.toString();
         }
 
-        private JSONObject getResultsResponse() {
+        private String getResultsResponse() {
             return JSONObject.fromObject("{\n" +
                     "  \"results\": {\n" +
                     "    \"s3-logging-disabled\": {\n" +
@@ -112,29 +119,24 @@ public class DeployTimeTest {
                     "      ]\n" +
                     "    }\n" +
                     "  }\n" +
-                    "}");
+                    "}").toString();
         }
 
         final int getTimeoutLimit() {
             return -1;
         }
-
-        private String getDeployTimeURL() {
-            return DOMAIN_PROTOCOL + "://" + DOMAIN + ":" + DOMAIN_PORT
-                    + "/api/teams/" + TEAM_ID + "/devtime";
-        }
     }
+
     private DeployTime deployTime;
 
     @Before
-    public void setUpDeployTime() {
+    public void setUpDeployTime() throws EndpointUnavailableException {
         deployTime = new DeployTimeStub();
         deployTime.setDeployTimeId("myContext", "myTask");
     }
 
     @Test
     public void deployTimeEndpointShouldBeSet() {
-        Assert.assertNotNull(deployTime.getDeployTimeInstance());
         Assert.assertNotNull(deployTime.getResults());
         Assert.assertEquals(deployTime.getDomain(), DeployTimeStub.DOMAIN);
         Assert.assertEquals(deployTime.getDomainPort(), DeployTimeStub.DOMAIN_PORT);

@@ -7,7 +7,7 @@ import org.junit.Test;
 @SuppressWarnings("unused")
 public class ContextRunTest {
 
-    JSONObject getStubbedStatus(String runState, String engineState, String engineStatus) {
+    static JSONObject getStubbedStatus(String runState, String engineState, String engineStatus) {
         JSONObject status = new JSONObject();
         status.put("runningState", runState);
         status.put("engineState", engineState);

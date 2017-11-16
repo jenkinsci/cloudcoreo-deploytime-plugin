@@ -1,5 +1,6 @@
 package com.cloudcoreo.plugins.jenkins;
 
+import com.cloudcoreo.plugins.jenkins.exceptions.EndpointUnavailableException;
 import com.google.gson.JsonSyntaxException;
 import hudson.*;
 import hudson.model.AbstractProject;
@@ -14,7 +15,6 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import javax.ws.rs.ProcessingException;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -90,8 +90,8 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
 
             ContextDisposer.writeSerializedDataToTempFile(workspace, vars, build.getId());
             team.makeAvailable();
-        } catch(ProcessingException e) {
-            String message = "\nCloudCoreo server endpoint is currently unavailable, skipping DeployTime analysis\n";
+        } catch(EndpointUnavailableException e) {
+            String message = e.getMessage();
             logger.println(message);
             team.makeUnavailable();
         } catch(IOException | URISyntaxException e) {
