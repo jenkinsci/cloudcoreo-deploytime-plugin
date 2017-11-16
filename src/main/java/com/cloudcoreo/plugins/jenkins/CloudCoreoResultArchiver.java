@@ -37,17 +37,17 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
 
     private CloudCoreoTeam team;
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnHigh() {
         return blockOnHigh;
     }
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnMedium() {
         return blockOnMedium;
     }
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnLow() {
         return blockOnLow;
     }
@@ -64,6 +64,7 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         return team;
     }
 
+    @SuppressWarnings("WeakerAccess")
     @DataBoundConstructor
     public CloudCoreoResultArchiver(boolean blockOnHigh, boolean blockOnMedium, boolean blockOnLow) {
         this.blockOnHigh = blockOnHigh;
