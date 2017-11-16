@@ -291,8 +291,7 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         boolean printedHeader = false;
         for (String level : levels) {
             for (ContextTestResult runResult : getRunResults()) {
-                boolean matchedLevel = runResult.getLevel().equalsIgnoreCase(level);
-                if (matchedLevel) {
+                if (levelShouldBlock(runResult.getLevel())) {
                     if (!printedHeader) {
                         logger.println("** Violations with level: '" + level + "'");
                         printedHeader = true;
