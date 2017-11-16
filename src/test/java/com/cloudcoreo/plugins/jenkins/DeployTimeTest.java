@@ -1,6 +1,6 @@
 package com.cloudcoreo.plugins.jenkins;
 
-import com.cloudcoreo.plugins.jenkins.exceptions.ExecutionFailedException;
+import com.cloudcoreo.plugins.jenkins.exceptions.*;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.junit.Assert;
@@ -127,7 +127,7 @@ public class DeployTimeTest {
     private DeployTime deployTime;
 
     @Before
-    public void setUpDeployTime() {
+    public void setUpDeployTime() throws EndpointUnavailableException {
         deployTime = new DeployTimeStub();
         deployTime.setDeployTimeId("myContext", "myTask");
     }
