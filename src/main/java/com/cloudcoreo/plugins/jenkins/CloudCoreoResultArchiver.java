@@ -259,9 +259,8 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
 
         writeResultsHtml(workspace, build.getId());
 
-        reportResults(logger);
-
         if (hasBlockingFailures()) {
+            reportResults(logger);
             build.setResult(Result.FAILURE);
         }
     }
@@ -344,7 +343,9 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
 
     private boolean levelShouldBlock(String level) {
         level = level.toUpperCase();
-        return level.equals("HIGH") || level.equals("MEDIUM") || level.equals("LOW");
+        return (level.equals("HIGH") && getBlockOnHigh())
+                || (level.equals("MEDIUM") && getBlockOnMedium())
+                || (level.equals("LOW") && getBlockOnLow());
     }
 
     boolean hasBlockingFailures() {
