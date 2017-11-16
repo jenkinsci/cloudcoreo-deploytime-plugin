@@ -83,7 +83,7 @@ public class DeployTime implements Serializable {
         return getDomainProtocol() + "://" + getDomain() + ":" + getDomainPort();
     }
 
-    private String getDeployTimeURL() {
+    String getDeployTimeURL() {
         return getEndpointURL() + "/api/teams/" + teamId + "/devtime";
     }
 
@@ -130,7 +130,7 @@ public class DeployTime implements Serializable {
         return "";
     }
 
-    JSONObject sendSignedRequest(String url, String callType, String body) {
+    private JSONObject sendSignedRequest(String url, String callType, String body) {
         Gson gson = new Gson();
         body = (body == null) ? "" : body;
 
@@ -165,18 +165,19 @@ public class DeployTime implements Serializable {
                 ).build();
         HttpResponse response;
         StringEntity stringEntity;
+        HttpRequestBase call;
 
         try {
              stringEntity = new StringEntity(body);
 
             if (callType.equals("POST")) {
-                HttpPost call = (HttpPost) assignHeaders(new HttpPost(targetUrl), mediaType, authHeader, date);
-                call.setEntity(stringEntity);
-                response = client.execute(call);
+                HttpPost post = (HttpPost) assignHeaders(new HttpPost(targetUrl), mediaType, authHeader, date);
+                post.setEntity(stringEntity);
+                call = post;
             } else {
-                HttpGet call = (HttpGet) assignHeaders(new HttpGet(targetUrl), mediaType, authHeader, date);
-                response = client.execute(call);
+                call = assignHeaders(new HttpGet(targetUrl), mediaType, authHeader, date);
             }
+            response = makeHttpCall(client, call);
 
             return parseResponse(response);
         } catch (IOException ignore) {}
@@ -191,7 +192,7 @@ public class DeployTime implements Serializable {
         return request;
     }
 
-    private String parseResponse(HttpResponse response) {
+    String parseResponse(HttpResponse response) {
         InputStreamReader inputReader;
         StringBuilder buffer = new StringBuilder();
 
@@ -208,6 +209,10 @@ public class DeployTime implements Serializable {
         }
 
         return buffer.toString();
+    }
+
+    HttpResponse makeHttpCall(HttpClient client, HttpRequestBase call) throws IOException {
+        return client.execute(call);
     }
 
     void setDeployTimeId(String context, String task) throws EndpointUnavailableException {
