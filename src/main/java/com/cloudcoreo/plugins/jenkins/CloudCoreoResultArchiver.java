@@ -37,17 +37,17 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
 
     private CloudCoreoTeam team;
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnHigh() {
         return blockOnHigh;
     }
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnMedium() {
         return blockOnMedium;
     }
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnLow() {
         return blockOnLow;
     }
@@ -64,6 +64,7 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         return team;
     }
 
+    @SuppressWarnings("WeakerAccess")
     @DataBoundConstructor
     public CloudCoreoResultArchiver(boolean blockOnHigh, boolean blockOnMedium, boolean blockOnLow) {
         this.blockOnHigh = blockOnHigh;
@@ -258,9 +259,8 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
 
         writeResultsHtml(workspace, build.getId());
 
-        reportResults(logger);
-
         if (hasBlockingFailures()) {
+            reportResults(logger);
             build.setResult(Result.FAILURE);
         }
     }
@@ -291,8 +291,7 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         boolean printedHeader = false;
         for (String level : levels) {
             for (ContextTestResult runResult : getRunResults()) {
-                boolean matchedLevel = runResult.getLevel().equalsIgnoreCase(level);
-                if (matchedLevel) {
+                if (levelShouldBlock(runResult.getLevel())) {
                     if (!printedHeader) {
                         logger.println("** Violations with level: '" + level + "'");
                         printedHeader = true;
@@ -343,7 +342,9 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
 
     private boolean levelShouldBlock(String level) {
         level = level.toUpperCase();
-        return level.equals("HIGH") || level.equals("MEDIUM") || level.equals("LOW");
+        return (level.equals("HIGH") && getBlockOnHigh())
+                || (level.equals("MEDIUM") && getBlockOnMedium())
+                || (level.equals("LOW") && getBlockOnLow());
     }
 
     boolean hasBlockingFailures() {
