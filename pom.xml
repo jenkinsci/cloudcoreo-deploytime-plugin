@@ -12,7 +12,7 @@
 
     <groupId>com.cloudcoreo.plugins</groupId>
     <artifactId>cloudcoreo-deploytime</artifactId>
-    <version>0.1.1-SNAPSHOT</version>
+    <version>0.1.1</version>
     <packaging>hpi</packaging>
 
     <name>CloudCoreo DeployTime Plugin</name>
@@ -68,6 +68,7 @@
       <connection>scm:git:git://github.com/jenkinsci/${project.artifactId}-plugin.git</connection>
       <developerConnection>scm:git:git@github.com:jenkinsci/${project.artifactId}-plugin.git</developerConnection>
       <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
+    <tag>cloudcoreo-deploytime-0.1.1</tag>
   </scm>
 
     <repositories>
