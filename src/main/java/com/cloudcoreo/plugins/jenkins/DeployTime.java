@@ -197,13 +197,15 @@ public class DeployTime implements Serializable {
         StringBuilder buffer = new StringBuilder();
 
         try {
-            inputReader = new InputStreamReader(response.getEntity().getContent());
+            inputReader = new InputStreamReader(response.getEntity().getContent(), getEncoding());
             BufferedReader reader = new BufferedReader(inputReader);
             String line;
 
             while ((line = reader.readLine()) != null) {
                 buffer.append(line);
             }
+            inputReader.close();
+            reader.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
