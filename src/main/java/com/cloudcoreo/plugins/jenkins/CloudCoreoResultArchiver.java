@@ -16,6 +16,9 @@ import javax.annotation.Nonnull;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -30,26 +33,26 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
     private boolean blockOnMedium;
     private boolean blockOnLow;
     private List<ContextTestResult> runResults;
-    private String resultsHtml;
+    private List<String> resultsHtml;
 
     private CloudCoreoTeam team;
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnHigh() {
         return blockOnHigh;
     }
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnMedium() {
         return blockOnMedium;
     }
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnLow() {
         return blockOnLow;
     }
 
-    String getResultsHtml() {
+    List<String> getResultsHtml() {
         return resultsHtml;
     }
 
@@ -61,6 +64,7 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         return team;
     }
 
+    @SuppressWarnings("WeakerAccess")
     @DataBoundConstructor
     public CloudCoreoResultArchiver(boolean blockOnHigh, boolean blockOnMedium, boolean blockOnLow) {
         this.blockOnHigh = blockOnHigh;
@@ -87,29 +91,26 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         return (DescriptorImpl) super.getDescriptor();
     }
 
-    private String buildRowHtml(String name, String category, String displayName, String level, String violator, String link) {
-        return "<tr>" +
-                "<td><a href=\"" +
-                link +
-                "\">" +
-                name +
-                "</a></td>" +
-                "<td>" +
-                category +
-                "</td>" +
-                "<td>" +
-                displayName +
-                "</td>" +
-                "<td>" +
-                level +
-                "</td>" +
-                "<td>" +
-                violator +
-                "</td>" +
-                "</tr>";
+    private List<String> buildRowHtml(ContextTestResult violation, String violator) {
+        String[] columnContents = {
+                "<a href=\"" + violation.getLink() + "\">" + violation.getName() + "</a>",
+                violation.getCategory(),
+                violation.getDisplayName(),
+                violation.getLevel(),
+                violator
+        };
+        List<String> row = new ArrayList<>();
+        row.add("<tr>");
+        for (String column : columnContents) {
+            row.add("<td>");
+            row.add(column);
+            row.add("</td>");
+        }
+        row.add("</tr>");
+        return row;
     }
 
-    void writeResultsHtml(FilePath path, String buildId) {
+    void writeResultsHtml(FilePath filePath, String buildId) {
         Map<String, ArrayList<ContextTestResult>> sortedViolations = new HashMap<>();
         for (ContextTestResult violation : getRunResults()) {
             ArrayList<ContextTestResult> currentList = sortedViolations.get(violation.getLevel());
@@ -119,48 +120,46 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
             currentList.add(violation);
             sortedViolations.put(violation.getLevel(), currentList);
         }
-        StringBuilder allTableSections = new StringBuilder();
+        List<String> allTableSections = new ArrayList<>();
         for (String key : new HashSet<>(sortedViolations.keySet())) {
-            allTableSections.append(buildTableSection(key, sortedViolations.get(key)));
+            allTableSections.addAll(buildTableSection(key, sortedViolations.get(key)));
         }
 
-        File file = new File(path.getBaseName().replaceAll(" ", "\\\\ ") + "/" + buildId + ".xml");
-        resultsHtml = buildViolatorTableHtml(allTableSections.toString());
+        String pathName = filePath.getRemote().replaceAll(" ", "\\\\ ") + "/" + buildId + ".xml";
+        resultsHtml = buildViolatorTableHtml(allTableSections);
         try {
-            FileWriter f = new FileWriter(file);
-            f.write(resultsHtml);
-            f.close();
+            Files.write(Paths.get(pathName), resultsHtml, Charset.forName("UTF-8"));
         } catch (IOException ex) {
             log.info(ex.getMessage());
         }
     }
 
-    private String buildTableSection(String level, ArrayList<ContextTestResult> violationList) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("<tr><td align='center' colspan=\"5\">");
-        sb.append(level);
-        sb.append(" Violations</td>");
-        sb.append("</tr>");
+    private List<String> buildTableSection(String level, ArrayList<ContextTestResult> violationList) {
+        List<String> section = new ArrayList<>();
+        section.add("<tr>");
+        section.add("<td align='center' colspan=\"5\">");
+        section.add(level + " Violations");
+        section.add("</td>");
+        section.add("</tr>");
         for (ContextTestResult violation : violationList) {
             for (int x = 0; x < violation.getViolatingObjects().size(); x++) {
                 String violator = violation.getViolatingObjects().get(x);
-                sb.append(
-                        buildRowHtml(violation.getName(), violation.getCategory(), violation.getDisplayName(),
-                                violation.getLevel(), violator, violation.getLink())
-                );
+                section.addAll(buildRowHtml(violation, violator));
             }
         }
 //        sb.append("<tr><td align='center' colspan='5'></td></tr>");
-        return sb.toString();
+        return section;
     }
 
-    private String buildViolatorTableHtml(String allTableSections) {
-        return "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n" +
-                "<section name=\"Violation Summary\" line=\"0\" column=\"0\">\n" +
-                "<table sorttable=\"yes\">" +
-                allTableSections +
-                "\n</table>\n" +
-                "</section>";
+    private List<String> buildViolatorTableHtml(List<String> allTableSections) {
+        List<String> table = new ArrayList<>();
+        table.add("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
+        table.add("<section name=\"Violation Summary\" line=\"0\" column=\"0\">");
+        table.add("<table sorttable=\"yes\">");
+        table.addAll(allTableSections);
+        table.add("</table>");
+        table.add("</section>");
+        return table;
     }
 
     private void printViolatorRow(ContextTestResult ctr, PrintStream consoleLogger) {
@@ -260,9 +259,8 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
 
         writeResultsHtml(workspace, build.getId());
 
-        reportResults(logger);
-
         if (hasBlockingFailures()) {
+            reportResults(logger);
             build.setResult(Result.FAILURE);
         }
     }
@@ -293,8 +291,7 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         boolean printedHeader = false;
         for (String level : levels) {
             for (ContextTestResult runResult : getRunResults()) {
-                boolean matchedLevel = runResult.getLevel().equalsIgnoreCase(level);
-                if (matchedLevel) {
+                if (levelShouldBlock(runResult.getLevel())) {
                     if (!printedHeader) {
                         logger.println("** Violations with level: '" + level + "'");
                         printedHeader = true;
@@ -345,7 +342,9 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
 
     private boolean levelShouldBlock(String level) {
         level = level.toUpperCase();
-        return level.equals("HIGH") || level.equals("MEDIUM") || level.equals("LOW");
+        return (level.equals("HIGH") && getBlockOnHigh())
+                || (level.equals("MEDIUM") && getBlockOnMedium())
+                || (level.equals("LOW") && getBlockOnLow());
     }
 
     boolean hasBlockingFailures() {

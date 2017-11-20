@@ -105,11 +105,20 @@ final class ContextTestResult implements Serializable {
                 violatingObjects.add(jsonViolatingObject.toString());
             }
 
+            parseMetaTags(violationObject);
+        } else {
+            assignInstanceVars();
+        }
+    }
+
+    private void parseMetaTags(JSONObject violationObject) {
+        JSONObject metaTagsObject;
+        String metaTagName;
+        JSONObject metaTagValueJSON;
+        Object metaTagValueObject = null;
+
+        if (violationObject.containsKey("meta_")) {
             JSONArray jsonMetaTags = violationObject.getJSONArray("meta_");
-            JSONObject metaTagsObject;
-            String metaTagName;
-            JSONObject metaTagValueJSON;
-            Object metaTagValueObject = null;
             for (int i = 0; i < jsonMetaTags.size(); i++) {
                 metaTagsObject = jsonMetaTags.getJSONObject(i);
                 metaTagName = metaTagsObject.getString("name");
@@ -117,20 +126,20 @@ final class ContextTestResult implements Serializable {
 
                 // now we have to deal with lots of different data types - lets just make them all strings
                 Iterator valuesIterator = metaTagValueJSON.keys();
+                String keyId;
                 while (valuesIterator.hasNext()) {
-                    keyId = (String) valuesIterator.next();
+                    keyId = valuesIterator.next().toString();
                     try {
                         metaTagValueObject = metaTagValueJSON.get(keyId);
                     } catch (JSONException e) {
                         log.info(e.getMessage());
                     }
                 }
+
                 if (metaTagValueObject != null) {
                     metaTags.put(metaTagName, metaTagValueObject.toString());
                 }
             }
-        } else {
-            assignInstanceVars();
         }
     }
 
