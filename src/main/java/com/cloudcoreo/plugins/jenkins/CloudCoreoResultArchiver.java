@@ -288,10 +288,11 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
 
     // TODO: Store into a string and output string instead of iterating over runResults multiple times
     private void reportResultLevel(PrintStream logger, String[] levels) {
-        boolean printedHeader = false;
         for (String level : levels) {
+            boolean printedHeader = false;
             for (ContextTestResult runResult : getRunResults()) {
-                if (levelShouldBlock(runResult.getLevel())) {
+                String runLevel = runResult.getLevel().toUpperCase();
+                if (level.equals(runLevel) && levelShouldBlock(runLevel)) {
                     if (!printedHeader) {
                         logger.println("** Violations with level: '" + level + "'");
                         printedHeader = true;
