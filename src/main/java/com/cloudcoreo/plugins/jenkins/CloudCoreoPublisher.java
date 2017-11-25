@@ -177,10 +177,11 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
         String msg;
         do {
             Thread.sleep(5000);
+            boolean contextRunStarted = getTeam().getDeployTime().contextRunStarted();
             runHasTimedOut = getTeam().getDeployTime().contextRunTimedOut();
             hasRunningJobs = getTeam().getDeployTime().hasRunningJobs();
 
-            if (hasRunningJobs) {
+            if (hasRunningJobs || contextRunStarted) {
                 msg = "Please wait... The job is currently executing against your cloud objects...";
             } else {
                 msg = "Please wait... CloudCoreo is initializing the analysis job...";
