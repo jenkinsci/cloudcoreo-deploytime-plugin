@@ -4,20 +4,26 @@ import com.cloudcoreo.plugins.jenkins.exceptions.ExecutionFailedException;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
+import hudson.matrix.MatrixAggregatable;
+import hudson.matrix.MatrixAggregator;
+import hudson.matrix.MatrixBuild;
 import hudson.model.*;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
+import hudson.tasks.test.TestResultAggregator;
 import jenkins.tasks.SimpleBuildStep;
+import net.sf.json.JSONArray;
+import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Logger;
@@ -33,7 +39,6 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
     private boolean blockOnMedium;
     private boolean blockOnLow;
     private List<ContextTestResult> runResults;
-    private List<String> resultsHtml;
 
     private CloudCoreoTeam team;
 
@@ -50,10 +55,6 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
     @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnLow() {
         return blockOnLow;
-    }
-
-    List<String> getResultsHtml() {
-        return resultsHtml;
     }
 
     List<ContextTestResult> getRunResults() {
@@ -101,75 +102,30 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
         return (DescriptorImpl) super.getDescriptor();
     }
 
-    private List<String> buildRowHtml(ContextTestResult violation, String violator) {
-        String[] columnContents = {
-                "<a href=\"" + violation.getLink() + "\">" + violation.getName() + "</a>",
-                violation.getCategory(),
-                violation.getDisplayName(),
-                violation.getLevel(),
-                violator
-        };
-        List<String> row = new ArrayList<>();
-        row.add("<tr>");
-        for (String column : columnContents) {
-            row.add("<td>");
-            row.add(column);
-            row.add("</td>");
-        }
-        row.add("</tr>");
-        return row;
-    }
-
-    void writeResultsHtml(FilePath filePath, String buildId) {
-        Map<String, ArrayList<ContextTestResult>> sortedViolations = new HashMap<>();
+    void writeResultsToFile(FilePath filePath, String buildId) {
+        JSONObject sortedViolations = new JSONObject();
         for (ContextTestResult violation : getRunResults()) {
-            ArrayList<ContextTestResult> currentList = sortedViolations.get(violation.getLevel());
+            JSONArray currentList = (JSONArray) sortedViolations.get(violation.getLevel());
             if (currentList == null) {
-                currentList = new ArrayList<>();
+                currentList = new JSONArray();
             }
-            currentList.add(violation);
+            currentList.add(violation.getJSONResults());
             sortedViolations.put(violation.getLevel(), currentList);
         }
-        List<String> allTableSections = new ArrayList<>();
-        for (String key : new HashSet<>(sortedViolations.keySet())) {
-            allTableSections.addAll(buildTableSection(key, sortedViolations.get(key)));
-        }
 
-        String pathName = filePath.getRemote().replaceAll(" ", "\\\\ ") + "/" + buildId + ".xml";
-        resultsHtml = buildViolatorTableHtml(allTableSections);
+        Path dirName = Paths.get(filePath.getRemote().replaceAll(" ", "\\\\ ") + "/cloudcoreo/");
+        String pathName = dirName + "/" + buildId + ".txt";
+
         try {
-            Files.write(Paths.get(pathName), resultsHtml, Charset.forName("UTF-8"));
+            if (!Files.exists(dirName)) {
+                Files.createDirectory(dirName);
+            }
+            FileWriter file = new FileWriter(pathName);
+            file.write(sortedViolations.toString());
+            file.close();
         } catch (IOException ex) {
             log.info(ex.getMessage());
         }
-    }
-
-    private List<String> buildTableSection(String level, ArrayList<ContextTestResult> violationList) {
-        List<String> section = new ArrayList<>();
-        section.add("<tr>");
-        section.add("<td align='center' colspan=\"5\">");
-        section.add(level + " Violations");
-        section.add("</td>");
-        section.add("</tr>");
-        for (ContextTestResult violation : violationList) {
-            for (int x = 0; x < violation.getViolatingObjects().size(); x++) {
-                String violator = violation.getViolatingObjects().get(x);
-                section.addAll(buildRowHtml(violation, violator));
-            }
-        }
-//        sb.append("<tr><td align='center' colspan='5'></td></tr>");
-        return section;
-    }
-
-    private List<String> buildViolatorTableHtml(List<String> allTableSections) {
-        List<String> table = new ArrayList<>();
-        table.add("<?xml version=\"1.0\" encoding=\"utf-8\"?>");
-        table.add("<section name=\"Violation Summary\" line=\"0\" column=\"0\">");
-        table.add("<table sorttable=\"yes\">");
-        table.addAll(allTableSections);
-        table.add("</table>");
-        table.add("</section>");
-        return table;
     }
 
     private void printViolatorRow(ContextTestResult ctr, PrintStream consoleLogger) {
@@ -267,7 +223,7 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
             return;
         }
 
-        writeResultsHtml(workspace, build.getId());
+        writeResultsToFile(workspace, build.getId());
 
         if (hasBlockingFailures()) {
             reportResults(logger);
