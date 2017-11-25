@@ -124,8 +124,10 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
             waitForContextRun(build);
             retrieveAndSetResults(resultManager);
 
+            writeResults(workspace, build, resultManager);
             if (resultManager.hasBlockingFailures()) {
-                reportResults(workspace, build, resultManager);
+                resultManager.reportResultsToConsole();
+                build.setResult(Result.FAILURE);
             }
         } catch (ExecutionFailedException ignore) {}
     }
@@ -203,7 +205,7 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
         }
     }
 
-    private void reportResults(FilePath workspace, Run<?, ?> build, ResultManager resultManager) {
+    private void writeResults(FilePath workspace, Run<?, ?> build, ResultManager resultManager) {
         try {
             resultManager.writeResultsToFile(workspace, build.getId());
         } catch (IOException e) {
@@ -211,8 +213,6 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
             outputMessage(message);
             outputMessage(e.getMessage());
         }
-        resultManager.reportResultsToConsole();
-        build.setResult(Result.FAILURE);
     }
 
     private void outputMessage(String message) {
