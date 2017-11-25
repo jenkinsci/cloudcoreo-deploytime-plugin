@@ -1,8 +1,6 @@
 package com.cloudcoreo.plugins.jenkins;
 
 import hudson.FilePath;
-import hudson.model.Job;
-import hudson.model.Run;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 import org.jsoup.Jsoup;
@@ -64,7 +62,7 @@ public class CloudCoreoResultArchiverTest {
     @Test
     public void shouldWriteResultsToHTML() throws Exception {
         File file = new File(new URI("file:///tmp"));
-        archiver.writeResultsHtml(new FilePath(file), "unittest");
+        archiver.writeResultsToFile(new FilePath(file), "unittest");
         Document doc = Jsoup.parse(archiver.getResultsHtml().toString());
 
         Assert.assertEquals(51, doc.getAllElements().size());

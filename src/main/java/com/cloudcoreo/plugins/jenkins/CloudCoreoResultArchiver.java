@@ -257,7 +257,7 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
         for (String level : levels) {
             boolean printedHeader = false;
             for (ContextTestResult runResult : getRunResults()) {
-                String runLevel = runResult.getLevel().toUpperCase();
+                String runLevel = runResult.getLevel();
                 if (level.equals(runLevel) && levelShouldBlock(runLevel)) {
                     if (!printedHeader) {
                         logger.println("** Violations with level: '" + level + "'");
@@ -308,7 +308,6 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
     }
 
     private boolean levelShouldBlock(String level) {
-        level = level.toUpperCase();
         return (level.equals("HIGH") && getBlockOnHigh())
                 || (level.equals("MEDIUM") && getBlockOnMedium())
                 || (level.equals("LOW") && getBlockOnLow());
