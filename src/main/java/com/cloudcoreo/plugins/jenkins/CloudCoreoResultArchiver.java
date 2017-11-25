@@ -25,7 +25,7 @@ import java.util.logging.Logger;
 /**
  * Created by paul.allen on 8/23/17.
  */
-public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildStep {
+public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregatable, SimpleBuildStep {
 
     private final static Logger log = Logger.getLogger(CloudCoreoResultArchiver.class.getName());
 
@@ -70,6 +70,16 @@ public class CloudCoreoResultArchiver extends Notifier implements SimpleBuildSte
         this.blockOnHigh = blockOnHigh;
         this.blockOnMedium = blockOnMedium;
         this.blockOnLow = blockOnLow;
+    }
+
+    @Override
+    public MatrixAggregator createAggregator(MatrixBuild matrixBuild, Launcher launcher, BuildListener buildListener) {
+        return new TestResultAggregator(matrixBuild, launcher, buildListener);
+    }
+
+    @Override
+    public Action getProjectAction(AbstractProject<?, ?> project) {
+        return new CloudCoreoProjectAction(project);
     }
 
     @Extension
