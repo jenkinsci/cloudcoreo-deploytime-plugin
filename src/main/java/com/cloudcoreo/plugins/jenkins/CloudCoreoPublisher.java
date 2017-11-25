@@ -26,9 +26,9 @@ import java.util.logging.Logger;
 /**
  * Created by paul.allen on 8/23/17.
  */
-public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregatable, SimpleBuildStep {
+public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable, SimpleBuildStep {
 
-    private final static Logger log = Logger.getLogger(CloudCoreoResultArchiver.class.getName());
+    private final static Logger log = Logger.getLogger(CloudCoreoPublisher.class.getName());
 
     private boolean blockOnHigh;
     private boolean blockOnMedium;
@@ -58,7 +58,7 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
 
     @SuppressWarnings("WeakerAccess")
     @DataBoundConstructor
-    public CloudCoreoResultArchiver(boolean blockOnHigh, boolean blockOnMedium, boolean blockOnLow) {
+    public CloudCoreoPublisher(boolean blockOnHigh, boolean blockOnMedium, boolean blockOnLow) {
         this.blockOnHigh = blockOnHigh;
         this.blockOnMedium = blockOnMedium;
         this.blockOnLow = blockOnLow;
@@ -113,9 +113,25 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
     public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener) {
 
         logger = listener.getLogger();
-        Map<String, String> vars;
         ResultManager resultManager = new ResultManager(blockOnLow, blockOnMedium, blockOnHigh, logger);
+        if (!resultManager.shouldBlockBuild()) {
+            // no blocking for failures requested
+            return;
+        }
 
+        try {
+            initializeTeam(workspace, build);
+            waitForContextRun(build);
+            retrieveAndSetResults(resultManager);
+
+            if (resultManager.hasBlockingFailures()) {
+                reportResults(workspace, build, resultManager);
+            }
+        } catch (ExecutionFailedException ignore) {}
+    }
+
+    private void initializeTeam(FilePath workspace, Run<?, ?> build) throws ExecutionFailedException {
+        Map<String, String> vars;
         try {
             vars = readSerializedDataFromTempFile(workspace, build.getId());
             String teamString = vars.get("ccTeam");
@@ -126,77 +142,41 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
             String message = "\nERROR: Could not load necessary variables, likely because of a bad serialized file.\n" +
                     ">> Are you sure you enabled CloudCoreo build environment for workload analysis?\n";
             logger.println(message);
-            return;
+            throw new ExecutionFailedException(null);
         }
 
-        if (!getTeam().isAvailable()) {
+        if (!team.isAvailable()) {
             String message = "\n>> Skipping CloudCoreo DeployTime analysis because access to server is unavailable.\n";
             outputMessage(message);
-            return;
-        }
-
-        try {
-            getTeam().getDeployTime().sendStopContext();
-        } catch (Exception ex) {
-            log.info("sent a stop to a torn down container");
-        }
-
-        if (build.getResult() == Result.FAILURE) {
-            return;
-        }
-        if (!resultManager.shouldBlockBuild()) {
-            // no blocking for failures requested
-            return;
-        }
-
-        try {
-            waitForContextRun(build);
-        } catch (NullPointerException e) {
-            String message = "\n>> Lost connection to CloudCoreo server, skipping DeployTime analysis.\n";
-            outputMessage(message);
-            return;
-        } catch (ExecutionFailedException e) {
-            outputMessage(e.getMessage());
-            return;
-        }
-
-        try {
-            resultManager.setResults(getTeam());
-        } catch (Exception e) {
-            String message = "\n>> There was a problem getting results, please contact us and share the following info:";
-            outputMessage(message);
-            outputMessage(e.getMessage());
-            outputMessage(Arrays.toString(e.getStackTrace()) + "\n");
-            return;
-        }
-
-        if (resultManager.hasBlockingFailures()) {
-            try {
-                resultManager.writeResultsToFile(workspace, build.getId());
-            } catch (IOException e) {
-                String message = "\n>> Error writing results to file, results will not be available for graph\n";
-                outputMessage(message);
-                outputMessage(e.getMessage());
-            }
-            resultManager.reportResultsToConsole();
-            build.setResult(Result.FAILURE);
+            throw new ExecutionFailedException(null);
         }
     }
 
     private void waitForContextRun(Run<?, ?> build) throws ExecutionFailedException {
         String msg;
+        try {
+            pollForContextRun();
+        } catch (InterruptedException e) {
+            msg = "Build aborted";
+            build.setResult(Result.FAILURE);
+            outputMessage(msg);
+            throw new ExecutionFailedException(null);
+        } catch (NullPointerException e) {
+            msg = "\n>> Lost connection to CloudCoreo server, skipping DeployTime analysis.\n";
+            outputMessage(msg);
+            throw new ExecutionFailedException(null);
+        } catch (ExecutionFailedException e) {
+            outputMessage(e.getMessage());
+            throw new ExecutionFailedException(null);
+        }
+    }
+
+    private void pollForContextRun() throws InterruptedException, ExecutionFailedException {
         boolean runHasTimedOut;
         boolean hasRunningJobs;
+        String msg;
         do {
-            try {
-                Thread.sleep(5000);
-            } catch (InterruptedException e) {
-                msg = "Build aborted";
-                build.setResult(Result.FAILURE);
-                outputMessage(msg);
-                return;
-            }
-
+            Thread.sleep(5000);
             runHasTimedOut = getTeam().getDeployTime().contextRunTimedOut();
             hasRunningJobs = getTeam().getDeployTime().hasRunningJobs();
 
@@ -209,6 +189,29 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
         } while (!runHasTimedOut || hasRunningJobs);
         msg = "Finalizing the report...";
         outputMessage(msg);
+    }
+
+    private void retrieveAndSetResults(ResultManager resultManager) {
+        try {
+            resultManager.setResults(getTeam());
+        } catch (Exception e) {
+            String message = "\n>> There was a problem getting results, please contact us and share the following info:";
+            outputMessage(message);
+            outputMessage(e.getMessage());
+            outputMessage(Arrays.toString(e.getStackTrace()) + "\n");
+        }
+    }
+
+    private void reportResults(FilePath workspace, Run<?, ?> build, ResultManager resultManager) {
+        try {
+            resultManager.writeResultsToFile(workspace, build.getId());
+        } catch (IOException e) {
+            String message = "\n>> Error writing results to file, results will not be available for graph\n";
+            outputMessage(message);
+            outputMessage(e.getMessage());
+        }
+        resultManager.reportResultsToConsole();
+        build.setResult(Result.FAILURE);
     }
 
     private void outputMessage(String message) {
