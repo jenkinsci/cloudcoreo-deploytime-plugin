@@ -14,17 +14,12 @@ import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
 import hudson.tasks.test.TestResultAggregator;
 import jenkins.tasks.SimpleBuildStep;
-import net.sf.json.JSONArray;
-import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
 import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -38,7 +33,7 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
     private boolean blockOnHigh;
     private boolean blockOnMedium;
     private boolean blockOnLow;
-    private List<ContextTestResult> runResults;
+    private PrintStream logger;
 
     private CloudCoreoTeam team;
 
@@ -55,10 +50,6 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
     @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnLow() {
         return blockOnLow;
-    }
-
-    List<ContextTestResult> getRunResults() {
-        return runResults;
     }
 
     CloudCoreoTeam getTeam() {
@@ -102,51 +93,6 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
         return (DescriptorImpl) super.getDescriptor();
     }
 
-    void writeResultsToFile(FilePath filePath, String buildId) {
-        JSONObject sortedViolations = new JSONObject();
-        for (ContextTestResult violation : getRunResults()) {
-            JSONArray currentList = (JSONArray) sortedViolations.get(violation.getLevel());
-            if (currentList == null) {
-                currentList = new JSONArray();
-            }
-            currentList.add(violation.getJSONResults());
-            sortedViolations.put(violation.getLevel(), currentList);
-        }
-
-        Path dirName = Paths.get(filePath.getRemote().replaceAll(" ", "\\\\ ") + "/cloudcoreo/");
-        String pathName = dirName + "/" + buildId + ".txt";
-
-        try {
-            if (!Files.exists(dirName)) {
-                Files.createDirectory(dirName);
-            }
-            FileWriter file = new FileWriter(pathName);
-            file.write(sortedViolations.toString());
-            file.close();
-        } catch (IOException ex) {
-            log.info(ex.getMessage());
-        }
-    }
-
-    private void printViolatorRow(ContextTestResult ctr, PrintStream consoleLogger) {
-
-        for (int x = 0; x < ctr.getViolatingObjects().size(); x++) {
-            String violator = ctr.getViolatingObjects().get(x);
-            String sb = ctr.getName() +
-                    " | " +
-                    ctr.getCategory() +
-                    " | " +
-                    ctr.getDisplayName() +
-                    " | " +
-                    ctr.getLevel() +
-                    " | " +
-                    violator +
-                    " | " +
-                    ctr.getLink();
-            consoleLogger.println(sb);
-        }
-    }
-
 
     private Map<String, String> readSerializedDataFromTempFile(FilePath path, String buildId)
             throws URISyntaxException, IOException, ClassNotFoundException {
@@ -166,8 +112,9 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
     @Override
     public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener) {
 
-        PrintStream logger = listener.getLogger();
+        logger = listener.getLogger();
         Map<String, String> vars;
+        ResultManager resultManager = new ResultManager(blockOnLow, blockOnMedium, blockOnHigh, logger);
 
         try {
             vars = readSerializedDataFromTempFile(workspace, build.getId());
@@ -184,7 +131,7 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
 
         if (!getTeam().isAvailable()) {
             String message = "\n>> Skipping CloudCoreo DeployTime analysis because access to server is unavailable.\n";
-            outputMessage(logger, message);
+            outputMessage(message);
             return;
         }
 
@@ -197,79 +144,46 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
         if (build.getResult() == Result.FAILURE) {
             return;
         }
-        if (!shouldBlockBuild()) {
+        if (!resultManager.shouldBlockBuild()) {
             // no blocking for failures requested
             return;
         }
 
         try {
-            waitForContextRun(logger, build);
+            waitForContextRun(build);
         } catch (NullPointerException e) {
             String message = "\n>> Lost connection to CloudCoreo server, skipping DeployTime analysis.\n";
-            outputMessage(logger, message);
+            outputMessage(message);
             return;
         } catch (ExecutionFailedException e) {
-            outputMessage(logger, e.getMessage());
+            outputMessage(e.getMessage());
             return;
         }
 
         try {
-            runResults = getTeam().getDeployTime().getResults();
+            resultManager.setResults(getTeam());
         } catch (Exception e) {
             String message = "\n>> There was a problem getting results, please contact us and share the following info:";
-            outputMessage(logger, message);
-            outputMessage(logger, e.getMessage());
-            outputMessage(logger, Arrays.toString(e.getStackTrace()) + "\n");
+            outputMessage(message);
+            outputMessage(e.getMessage());
+            outputMessage(Arrays.toString(e.getStackTrace()) + "\n");
             return;
         }
 
-        writeResultsToFile(workspace, build.getId());
-
-        if (hasBlockingFailures()) {
-            reportResults(logger);
+        if (resultManager.hasBlockingFailures()) {
+            try {
+                resultManager.writeResultsToFile(workspace, build.getId());
+            } catch (IOException e) {
+                String message = "\n>> Error writing results to file, results will not be available for graph\n";
+                outputMessage(message);
+                outputMessage(e.getMessage());
+            }
+            resultManager.reportResultsToConsole();
             build.setResult(Result.FAILURE);
         }
     }
 
-    void reportResults(PrintStream logger) {
-        String lineDelimiter = "\n**************************************************\n";
-        String[] reportLevels = {"HIGH", "MEDIUM", "LOW"};
-
-        if (getRunResults().size() > 0) {
-            logger.println(lineDelimiter);
-            logger.println(">>>> CloudCoreo Violations Found");
-            logger.println(lineDelimiter);
-
-            reportResultLevel(logger, reportLevels);
-
-            logger.println(lineDelimiter);
-            logger.println(">>>> End Violations Found");
-            logger.println(lineDelimiter);
-        } else {
-            logger.println(lineDelimiter);
-            logger.println(">>>> No CloudCoreo violations found for context");
-            logger.println(lineDelimiter);
-        }
-    }
-
-    // TODO: Store into a string and output string instead of iterating over runResults multiple times
-    private void reportResultLevel(PrintStream logger, String[] levels) {
-        for (String level : levels) {
-            boolean printedHeader = false;
-            for (ContextTestResult runResult : getRunResults()) {
-                String runLevel = runResult.getLevel();
-                if (level.equals(runLevel) && levelShouldBlock(runLevel)) {
-                    if (!printedHeader) {
-                        logger.println("** Violations with level: '" + level + "'");
-                        printedHeader = true;
-                    }
-                    printViolatorRow(runResult, logger);
-                }
-            }
-        }
-    }
-
-    private void waitForContextRun(PrintStream consoleLogger, Run<?, ?> build) throws ExecutionFailedException {
+    private void waitForContextRun(Run<?, ?> build) throws ExecutionFailedException {
         String msg;
         boolean runHasTimedOut;
         boolean hasRunningJobs;
@@ -279,7 +193,7 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
             } catch (InterruptedException e) {
                 msg = "Build aborted";
                 build.setResult(Result.FAILURE);
-                outputMessage(consoleLogger, msg);
+                outputMessage(msg);
                 return;
             }
 
@@ -291,35 +205,16 @@ public class CloudCoreoResultArchiver extends Notifier implements MatrixAggregat
             } else {
                 msg = "Please wait... CloudCoreo is initializing the analysis job...";
             }
-            outputMessage(consoleLogger, msg);
+            outputMessage(msg);
         } while (!runHasTimedOut || hasRunningJobs);
         msg = "Finalizing the report...";
-        outputMessage(consoleLogger, msg);
+        outputMessage(msg);
     }
 
-    private void outputMessage(PrintStream consoleLogger, String message) {
-        consoleLogger.println(message);
-        consoleLogger.flush();
+    private void outputMessage(String message) {
+        logger.println(message);
+        logger.flush();
         log.info(message);
-    }
-
-    private boolean shouldBlockBuild() {
-        return getBlockOnHigh() || getBlockOnMedium() || getBlockOnLow();
-    }
-
-    private boolean levelShouldBlock(String level) {
-        return (level.equals("HIGH") && getBlockOnHigh())
-                || (level.equals("MEDIUM") && getBlockOnMedium())
-                || (level.equals("LOW") && getBlockOnLow());
-    }
-
-    boolean hasBlockingFailures() {
-        for (ContextTestResult rr : getRunResults()) {
-            if (shouldBlockBuild() && levelShouldBlock(rr.getLevel())) {
-                return true;
-            }
-        }
-        return false;
     }
 
     public BuildStepMonitor getRequiredMonitorService() {
