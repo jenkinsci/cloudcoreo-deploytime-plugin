@@ -72,8 +72,10 @@ class ResultManager {
     }
 
     boolean hasBlockingFailures() {
-        for (ContextTestResult rr : getRunResults()) {
-            if (shouldBlockBuild() && levelShouldBlock(rr.getLevel())) {
+        Set<?> levels = resultsJSON.keySet();
+        for (Object level : levels) {
+            String levelString = (String) level;
+            if (shouldBlockBuild() && levelShouldBlock(levelString)) {
                 return true;
             }
         }
