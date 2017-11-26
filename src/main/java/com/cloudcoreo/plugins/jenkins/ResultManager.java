@@ -10,6 +10,7 @@ import java.io.PrintStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -18,7 +19,7 @@ class ResultManager {
     private boolean shouldBlockOnLow;
     private boolean shouldBlockOnMedium;
     private boolean shouldBlockOnHigh;
-    private Path cloudCoreoFilePath;
+    private static Path cloudCoreoFilePath;
     private List<ContextTestResult> results;
     private JSONObject resultsJSON;
     private PrintStream logger;
@@ -51,6 +52,23 @@ class ResultManager {
         FileWriter file = new FileWriter(pathName);
         file.write(resultsJSON.toString());
         file.close();
+    }
+
+    static List<JSONObject> getAllResults(FilePath filePath) throws IOException {
+        Path dirName = getCloudCoreoFilePath(filePath);
+        List<Path> resultFiles = new ArrayList<>();
+        List<JSONObject> results = new ArrayList<>();
+        Files.list(dirName).forEachOrdered(resultFiles::add);
+        for (Path file : resultFiles) {
+            String contents = Files.readAllLines(file).get(0);
+            results.add(JSONObject.fromObject(contents));
+        }
+        return results;
+    }
+
+    static JSONObject getLastResult(FilePath filePath) throws IOException {
+        List<JSONObject> results = getAllResults(filePath);
+        return results.get(results.size() - 1);
     }
 
     void reportResultsToConsole() {
@@ -133,7 +151,7 @@ class ResultManager {
         }
     }
 
-    private Path getCloudCoreoFilePath(FilePath filePath) {
+    private static Path getCloudCoreoFilePath(FilePath filePath) {
         if (cloudCoreoFilePath == null) {
             cloudCoreoFilePath = Paths.get(filePath.getRemote().replaceAll(" ", "\\\\ ") + "/cloudcoreo/");
         }
