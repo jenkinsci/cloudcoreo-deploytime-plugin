@@ -14,6 +14,7 @@ import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
 import hudson.tasks.test.TestResultAggregator;
 import jenkins.tasks.SimpleBuildStep;
+import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
@@ -34,7 +35,7 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
     private boolean blockOnMedium;
     private boolean blockOnLow;
     private PrintStream logger;
-
+    private FilePath workspacePath;
     private CloudCoreoTeam team;
 
     @SuppressWarnings({"unused", "WeakerAccess"})
@@ -62,6 +63,7 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
         this.blockOnHigh = blockOnHigh;
         this.blockOnMedium = blockOnMedium;
         this.blockOnLow = blockOnLow;
+        workspacePath = null;
     }
 
     @Override
@@ -71,7 +73,7 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
 
     @Override
     public Action getProjectAction(AbstractProject<?, ?> project) {
-        return new CloudCoreoProjectAction(project);
+        return new CloudCoreoProjectAction(project, workspacePath);
     }
 
     @Extension
@@ -94,9 +96,9 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
     }
 
 
-    private Map<String, String> readSerializedDataFromTempFile(FilePath path, String buildId)
+    private Map<String, String> readSerializedDataFromTempFile(String buildId)
             throws URISyntaxException, IOException, ClassNotFoundException {
-        String fp = "file:///" + path + "/" + buildId + ".ser";
+        String fp = "file:///" + workspacePath + "/" + buildId + ".ser";
         File file = new File(new URI(fp.replaceAll(" ", "%20")).getPath());
         FileInputStream f = new FileInputStream(file);
         ObjectInputStream objectStream = new ObjectInputStream(f);
@@ -113,6 +115,7 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
     public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener) {
 
         logger = listener.getLogger();
+        workspacePath = workspace;
         ResultManager resultManager = new ResultManager(blockOnLow, blockOnMedium, blockOnHigh, logger);
         if (!resultManager.shouldBlockBuild()) {
             // no blocking for failures requested
@@ -120,11 +123,11 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
         }
 
         try {
-            initializeTeam(workspace, build);
+            initializeTeam(build);
             waitForContextRun(build);
             retrieveAndSetResults(resultManager);
 
-            writeResults(workspace, build, resultManager);
+            writeResults(build, resultManager);
             if (resultManager.hasBlockingFailures()) {
                 resultManager.reportResultsToConsole();
                 build.setResult(Result.FAILURE);
@@ -132,10 +135,10 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
         } catch (ExecutionFailedException ignore) {}
     }
 
-    private void initializeTeam(FilePath workspace, Run<?, ?> build) throws ExecutionFailedException {
+    private void initializeTeam(Run<?, ?> build) throws ExecutionFailedException {
         Map<String, String> vars;
         try {
-            vars = readSerializedDataFromTempFile(workspace, build.getId());
+            vars = readSerializedDataFromTempFile(build.getId());
             String teamString = vars.get("ccTeam");
 
             team = CloudCoreoTeam.getTeamFromString(teamString);
@@ -205,9 +208,11 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
         }
     }
 
-    private void writeResults(FilePath workspace, Run<?, ?> build, ResultManager resultManager) {
+    private void writeResults(Run<?, ?> build, ResultManager resultManager) {
         try {
-            resultManager.writeResultsToFile(workspace, build.getId());
+            resultManager.writeResultsToFile(workspacePath, build.getId());
+            JSONObject lastResult = ResultManager.getLastResult(workspacePath);
+            build.addAction(new CloudCoreoBuildAction(build, lastResult));
         } catch (IOException e) {
             String message = "\n>> Error writing results to file, results will not be available for graph\n";
             outputMessage(message);
