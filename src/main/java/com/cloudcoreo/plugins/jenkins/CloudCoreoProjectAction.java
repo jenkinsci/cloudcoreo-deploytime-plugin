@@ -10,7 +10,7 @@ import java.io.IOException;
 
 public class CloudCoreoProjectAction implements Action {
 
-    private final int RESULT_LIMIT = 30;
+    private final static int RESULT_LIMIT = 30;
     private final AbstractProject<?, ?> project;
     private final Job<?, ?> job;
     private JSONArray results;

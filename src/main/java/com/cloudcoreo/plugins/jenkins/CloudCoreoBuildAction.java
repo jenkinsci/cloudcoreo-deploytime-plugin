@@ -15,7 +15,7 @@ public class CloudCoreoBuildAction implements Action, Serializable, StaplerProxy
     public static final String DISPLAY_NAME = "CloudCoreo DeployTime Results";
 
     private final JSONObject result;
-    private final Run build;
+    private final transient Run build;
 
     public CloudCoreoBuildAction(Run build, JSONObject result) {
         super();
