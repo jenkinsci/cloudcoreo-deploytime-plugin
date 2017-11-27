@@ -22,11 +22,13 @@ class ResultManager {
     private static Path cloudCoreoFilePath;
     private List<ContextTestResult> results;
     private JSONObject resultsJSON;
+    private JSONObject violationsJSON;
     private PrintStream logger;
 
     ResultManager(boolean blockOnLow, boolean blockOnMedium, boolean blockOnHigh, PrintStream logger) {
         cloudCoreoFilePath = null;
         resultsJSON = new JSONObject();
+        violationsJSON = new JSONObject();
         shouldBlockOnLow = blockOnLow;
         shouldBlockOnMedium = blockOnMedium;
         shouldBlockOnHigh = blockOnHigh;
@@ -37,9 +39,9 @@ class ResultManager {
         return results;
     }
 
-    void setResults(CloudCoreoTeam team) {
+    void setResults(CloudCoreoTeam team, String buildID) {
         results = team.getDeployTime().getResults();
-        setResultsJSON();
+        setResultsJSON(buildID);
     }
 
     void writeResultsToFile(FilePath filePath, String buildId) throws IOException {
@@ -54,10 +56,10 @@ class ResultManager {
         file.close();
     }
 
-    static List<JSONObject> getAllResults(FilePath filePath) throws IOException {
+    static JSONArray getAllResults(FilePath filePath) throws IOException {
         Path dirName = getCloudCoreoFilePath(filePath);
         List<Path> resultFiles = new ArrayList<>();
-        List<JSONObject> results = new ArrayList<>();
+        JSONArray results = new JSONArray();
         Files.list(dirName).forEachOrdered(resultFiles::add);
         for (Path file : resultFiles) {
             String contents = Files.readAllLines(file).get(0);
@@ -67,8 +69,8 @@ class ResultManager {
     }
 
     static JSONObject getLastResult(FilePath filePath) throws IOException {
-        List<JSONObject> results = getAllResults(filePath);
-        return results.get(results.size() - 1);
+        JSONArray results = getAllResults(filePath);
+        return results.getJSONObject(results.size() - 1);
     }
 
     void reportResultsToConsole() {
@@ -90,7 +92,7 @@ class ResultManager {
     }
 
     boolean hasBlockingFailures() {
-        Set<?> levels = resultsJSON.keySet();
+        Set<?> levels = violationsJSON.keySet();
         for (Object level : levels) {
             String levelString = (String) level;
             if (shouldBlockBuild() && levelShouldBlock(levelString)) {
@@ -104,24 +106,25 @@ class ResultManager {
         return shouldBlockOnLow || shouldBlockOnMedium || shouldBlockOnHigh;
     }
 
-    private void setResultsJSON() {
+    private void setResultsJSON(String buildID) {
+        resultsJSON.put("build", buildID);
         for (ContextTestResult violation : getRunResults()) {
-            JSONArray currentList = (JSONArray) resultsJSON.get(violation.getLevel());
+            JSONArray currentList = (JSONArray) violationsJSON.get(violation.getLevel());
             if (currentList == null) {
                 currentList = new JSONArray();
             }
             currentList.add(violation.getJSONResults());
-            resultsJSON.put(violation.getLevel(), currentList);
+            violationsJSON.put(violation.getLevel(), currentList);
         }
+        resultsJSON.put("violations", violationsJSON);
     }
 
-    // TODO: Store into a string and output string instead of iterating over runResults multiple times
     private void reportResultLevel() {
-        Set<?> levels = resultsJSON.keySet();
+        Set<?> levels = violationsJSON.keySet();
         for (Object level : levels) {
             String levelString = (String) level;
             boolean printedHeader = false;
-            JSONArray levelResults = resultsJSON.getJSONArray(levelString);
+            JSONArray levelResults = violationsJSON.getJSONArray(levelString);
             for (Object levelResult : levelResults) {
                 if (!printedHeader) {
                     logger.println("** Violations with level: '" + levelString + "'");
