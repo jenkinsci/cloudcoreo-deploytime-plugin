@@ -4,9 +4,8 @@ import hudson.FilePath;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintStream;
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -19,14 +18,13 @@ class ResultManager {
     private boolean shouldBlockOnLow;
     private boolean shouldBlockOnMedium;
     private boolean shouldBlockOnHigh;
-    private static Path cloudCoreoFilePath;
+    private static Path cloudCoreoFilePath = null;
     private List<ContextTestResult> results;
     private JSONObject resultsJSON;
     private JSONObject violationsJSON;
     private PrintStream logger;
 
     ResultManager(boolean blockOnLow, boolean blockOnMedium, boolean blockOnHigh, PrintStream logger) {
-        cloudCoreoFilePath = null;
         resultsJSON = new JSONObject();
         violationsJSON = new JSONObject();
         shouldBlockOnLow = blockOnLow;
@@ -51,9 +49,17 @@ class ResultManager {
         if (!Files.exists(dirName)) {
             Files.createDirectory(dirName);
         }
-        FileWriter file = new FileWriter(pathName);
-        file.write(resultsJSON.toString());
-        file.close();
+        Writer file = null;
+        try {
+            file = new OutputStreamWriter(new FileOutputStream(pathName), StandardCharsets.UTF_8);
+            file.write(resultsJSON.toString());
+        } catch (IOException e) {
+            throw new IOException(e);
+        } finally {
+            if (file != null) {
+                file.close();
+            }
+        }
     }
 
     static JSONArray getAllResults(FilePath filePath) throws IOException {
