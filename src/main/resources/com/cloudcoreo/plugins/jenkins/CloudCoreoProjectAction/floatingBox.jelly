@@ -1,23 +1,25 @@
 <?jelly escape-by-default='true'?>
 <j:jelly xmlns:j="jelly:core" xmlns:st="jelly:stapler" xmlns:d="jelly:define" xmlns:l="/lib/layout" xmlns:t="/lib/hudson" xmlns:f="/lib/form" xmlns:i="jelly:fmt">
-    <script src="${resURL}/plugin/cloudcoreo-deploytime/js/vendor/amcharts/amcharts.js"/>
-    <script src="${resURL}/plugin/cloudcoreo-deploytime/js/vendor/amcharts/serial.js"/>
-    <script src="${resURL}/plugin/cloudcoreo-deploytime/js/chart.js"/>
-    <script type="text/javascript">
-        initialize(${from.allBuildResults});
-    </script>
-    <h1>CloudCoreo DeployTime Results</h1>
-    <j:set var="results" value="${from.getLastBuildResult()}"/>
-    <div style="width: 500px; height: 350px; background-color: #FFF;" id="chart"/>
-    <table cellpadding="0" cellspacing="0" width="100%">
-        <tr>
-            <th colspan="4" align="left">Last build results (build ${results.getString("build")})</th>
-        </tr>
-        <tr>
-            <td><strong>Low:</strong> ${from.getLastCount("LOW")}</td>
-            <td><strong>Medium:</strong> ${from.getLastCount("MEDIUM")}</td>
-            <td><strong>High:</strong> ${from.getLastCount("HIGH")}</td>
-            <td align="right"><strong>Total:</strong> ${from.lastTotalCount}</td>
-        </tr>
-    </table>
+    <j:if test="${from.allBuildResults.size() > 0}">
+        <script src="${resURL}/plugin/cloudcoreo-deploytime/js/vendor/amcharts/amcharts.js"/>
+        <script src="${resURL}/plugin/cloudcoreo-deploytime/js/vendor/amcharts/serial.js"/>
+        <script src="${resURL}/plugin/cloudcoreo-deploytime/js/chart.js"/>
+        <script type="text/javascript">
+            initialize(${from.allBuildResults});
+        </script>
+
+        <h1>CloudCoreo DeployTime Results</h1>
+        <div style="width: 500px; height: 350px; background-color: #FFF;" id="chart"/>
+        <table cellpadding="0" cellspacing="0" width="100%">
+            <tr>
+                <th colspan="4" align="left">Last build results (build ${from.lastBuildResult.getString("build")})</th>
+            </tr>
+            <tr>
+                <td><strong>Low:</strong> ${from.getLastCount("LOW")}</td>
+                <td><strong>Medium:</strong> ${from.getLastCount("MEDIUM")}</td>
+                <td><strong>High:</strong> ${from.getLastCount("HIGH")}</td>
+                <td align="right"><strong>Total:</strong> ${from.lastTotalCount}</td>
+            </tr>
+        </table>
+    </j:if>
 </j:jelly>

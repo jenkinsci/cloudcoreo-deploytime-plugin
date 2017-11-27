@@ -43,6 +43,9 @@ public class CloudCoreoProjectAction implements Action {
     }
 
     public JSONArray getAllBuildResults() throws IOException {
+        if (this.project == null) {
+            return new JSONArray();
+        }
         results = ResultManager.getAllResults(this.project.getWorkspace());
         if (results.size() > RESULT_LIMIT) {
             int lastIndex = results.size() - 1;
