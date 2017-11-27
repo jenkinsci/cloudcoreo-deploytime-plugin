@@ -4,15 +4,11 @@ import com.cloudcoreo.plugins.jenkins.exceptions.ExecutionFailedException;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.Launcher;
-import hudson.matrix.MatrixAggregatable;
-import hudson.matrix.MatrixAggregator;
-import hudson.matrix.MatrixBuild;
 import hudson.model.*;
 import hudson.tasks.BuildStepDescriptor;
 import hudson.tasks.BuildStepMonitor;
 import hudson.tasks.Notifier;
 import hudson.tasks.Publisher;
-import hudson.tasks.test.TestResultAggregator;
 import jenkins.tasks.SimpleBuildStep;
 import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
@@ -27,7 +23,7 @@ import java.util.logging.Logger;
 /**
  * Created by paul.allen on 8/23/17.
  */
-public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable, SimpleBuildStep {
+public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
 
     private final static Logger log = Logger.getLogger(CloudCoreoPublisher.class.getName());
 
@@ -64,11 +60,6 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
         this.blockOnMedium = blockOnMedium;
         this.blockOnLow = blockOnLow;
         workspacePath = null;
-    }
-
-    @Override
-    public MatrixAggregator createAggregator(MatrixBuild matrixBuild, Launcher launcher, BuildListener buildListener) {
-        return new TestResultAggregator(matrixBuild, launcher, buildListener);
     }
 
     @Override
