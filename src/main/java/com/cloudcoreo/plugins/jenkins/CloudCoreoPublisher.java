@@ -73,7 +73,7 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
 
     @Override
     public Action getProjectAction(AbstractProject<?, ?> project) {
-        return new CloudCoreoProjectAction(project, workspacePath);
+        return new CloudCoreoProjectAction(project);
     }
 
     @Extension
@@ -125,7 +125,7 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
         try {
             initializeTeam(build);
             waitForContextRun(build);
-            retrieveAndSetResults(resultManager);
+            retrieveAndSetResults(resultManager, build.getId());
 
             writeResults(build, resultManager);
             if (resultManager.hasBlockingFailures()) {
@@ -197,9 +197,9 @@ public class CloudCoreoPublisher extends Notifier implements MatrixAggregatable,
         outputMessage(msg);
     }
 
-    private void retrieveAndSetResults(ResultManager resultManager) {
+    private void retrieveAndSetResults(ResultManager resultManager, String buildId) {
         try {
-            resultManager.setResults(getTeam());
+            resultManager.setResults(getTeam(), buildId);
         } catch (Exception e) {
             String message = "\n>> There was a problem getting results, please contact us and share the following info:";
             outputMessage(message);
