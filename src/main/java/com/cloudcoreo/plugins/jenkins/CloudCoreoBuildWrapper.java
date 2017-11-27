@@ -134,12 +134,12 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
             log.info("finishing CloudCoreo analysis");
 
             Map<String, String> vars = new HashMap<>();
-            vars.put("ccTeam", team.toString());
             vars.put("ccTask", taskId);
             vars.put("ccContext", disposerContext);
 
             try {
                 team.getDeployTime().sendStopContext();
+                vars.put("ccTeam", team.toString());
                 writeSerializedDataToTempFile(workspace, vars, build.getId());
             } catch (URISyntaxException | IOException | NullPointerException e) {
                 String message = "\nThere was a problem in the teardown of the build, skipping DeployTime analysis\n";
