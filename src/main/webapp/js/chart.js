@@ -3,8 +3,10 @@ function generateChartFromData(data) {
     const chartData = [];
 
     data.sort((first, second) => {
-        if (first.build < second.build) return -1;
-        if (first.build > second.build) return 1;
+        const f = parseInt(first.build);
+        const s = parseInt(second.build);
+        if (f < s) return -1;
+        if (f > s) return 1;
         return 0;
     });
     for (let i = 0; i < data.length; i++) {
