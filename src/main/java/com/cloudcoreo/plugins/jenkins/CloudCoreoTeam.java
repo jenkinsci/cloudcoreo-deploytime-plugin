@@ -80,6 +80,7 @@ public class CloudCoreoTeam implements Serializable {
         domain = json.getString("domain");
         domainProtocol = json.getString("domainProtocol");
         domainPort = json.getInt("domainPort");
+        isAvailable = true;
     }
 
     @DataBoundConstructor
