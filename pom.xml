@@ -12,7 +12,7 @@
 
     <groupId>com.cloudcoreo.plugins</groupId>
     <artifactId>cloudcoreo-deploytime</artifactId>
-    <version>0.2.2-SNAPSHOT</version>
+    <version>0.2.3-SNAPSHOT</version>
     <packaging>hpi</packaging>
 
     <name>CloudCoreo DeployTime Plugin</name>
