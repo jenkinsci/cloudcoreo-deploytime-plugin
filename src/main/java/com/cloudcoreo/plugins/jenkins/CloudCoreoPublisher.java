@@ -186,6 +186,8 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
         } while (!runHasTimedOut || hasRunningJobs);
         msg = "Finalizing the report...";
         outputMessage(msg);
+        // TODO: Deal with race condition at this stage where results may not be immediately ready on completion
+        Thread.sleep(10000);
     }
 
     private void retrieveAndSetResults(ResultManager resultManager, String buildId) {

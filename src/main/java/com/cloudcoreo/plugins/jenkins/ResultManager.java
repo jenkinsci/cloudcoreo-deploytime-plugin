@@ -18,7 +18,6 @@ class ResultManager {
     private boolean shouldBlockOnLow;
     private boolean shouldBlockOnMedium;
     private boolean shouldBlockOnHigh;
-    private static Path cloudCoreoFilePath = null;
     private List<ContextTestResult> results;
     private JSONObject resultsJSON;
     private JSONObject violationsJSON;
@@ -45,10 +44,6 @@ class ResultManager {
     void writeResultsToFile(FilePath filePath, String buildId) throws IOException {
         Path dirName = getCloudCoreoFilePath(filePath);
         String pathName = dirName + "/" + buildId + ".txt";
-
-        if (!Files.exists(dirName)) {
-            Files.createDirectory(dirName);
-        }
         Writer file = null;
         try {
             file = new OutputStreamWriter(new FileOutputStream(pathName), StandardCharsets.UTF_8);
@@ -160,11 +155,12 @@ class ResultManager {
         }
     }
 
-    private static Path getCloudCoreoFilePath(FilePath filePath) {
-        if (cloudCoreoFilePath == null) {
-            cloudCoreoFilePath = Paths.get(filePath.getRemote().replaceAll(" ", "\\\\ ") + "/cloudcoreo/");
+    private static Path getCloudCoreoFilePath(FilePath filePath) throws IOException {
+        Path cloudcoreoPath = Paths.get(filePath.getRemote().replaceAll(" ", "\\\\ ") + "/cloudcoreo/");
+        if (!Files.exists(cloudcoreoPath)) {
+            Files.createDirectories(cloudcoreoPath);
         }
-        return cloudCoreoFilePath;
+        return cloudcoreoPath;
     }
 
     private boolean levelShouldBlock(String level) {
