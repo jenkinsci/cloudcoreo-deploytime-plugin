@@ -15,13 +15,19 @@ public class ResultManagerTest {
     private FilePath testFilePath;
     private CloudCoreoTeam team;
 
+    static class ResultManagerStub extends ResultManager {
+        ResultManagerStub(boolean blockOnLow, boolean blockOnMedium, boolean blockOnHigh) {
+            super(blockOnLow, blockOnMedium, blockOnHigh, System.out);
+        }
+    }
+
     @Before
     public void setUp() throws EndpointUnavailableException, IOException {
         buildID = "unittest";
         team = new CloudCoreoTeamTest.CloudCoreoTeamStub();
         team.getDeployTime().setDeployTimeId("myContext", "myTask");
 
-        manager = new ResultManager(false, true, true, System.out);
+        manager = new ResultManagerStub(false, true, true);
         manager.setResults(team, buildID);
 
         testFilePath = new FilePath(new File("/tmp/"));
@@ -30,7 +36,7 @@ public class ResultManagerTest {
 
     @Test
     public void ensureAccurateBlocking() {
-        ResultManager blockedManager = new ResultManager(true, false, true, null);
+        ResultManager blockedManager = new ResultManagerStub(true, false, true);
         blockedManager.setResults(team, buildID);
         Assert.assertFalse(manager.hasBlockingFailures());
         Assert.assertTrue(blockedManager.hasBlockingFailures());
