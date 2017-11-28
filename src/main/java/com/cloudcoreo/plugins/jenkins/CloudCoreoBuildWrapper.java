@@ -64,7 +64,7 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
 
         PrintStream logger = listener.getLogger();
         team = getDescriptor().getTeam(teamName);
-        team.reloadDeployTime();
+        team.loadNewDeployTime();
 
         String jobName = initialEnvironment.get("JOB_NAME");
         String ccContext = (customContext.length() > 0) ? customContext : jobName;

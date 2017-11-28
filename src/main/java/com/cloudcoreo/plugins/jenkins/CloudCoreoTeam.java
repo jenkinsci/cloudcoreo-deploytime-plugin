@@ -67,7 +67,7 @@ public class CloudCoreoTeam implements Serializable {
     @SuppressWarnings("WeakerAccess")
     public DeployTime getDeployTime() {
         if (deployTime == null) {
-            reloadDeployTime();
+            deployTime = loadNewDeployTime();
         }
         return deployTime;
     }
@@ -140,8 +140,9 @@ public class CloudCoreoTeam implements Serializable {
                 && this.teamName.equals(comparedTeam.getTeamName());
     }
 
-    void reloadDeployTime() {
+    DeployTime loadNewDeployTime() {
         deployTime = new DeployTime(teamId, domain, domainPort, domainProtocol, teamKeyId, teamSecretKey);
+        return deployTime;
     }
 }
 
