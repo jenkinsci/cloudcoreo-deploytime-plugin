@@ -27,8 +27,6 @@ public class CloudCoreoPublisherTest {
 
     @Rule
     public JenkinsRule rule = new JenkinsRule();
-
-    private final String BUILD_ID = "unittest";
     private CloudCoreoPublisher publisher;
     private FreeStyleBuild build;
 
@@ -66,8 +64,10 @@ public class CloudCoreoPublisherTest {
         }
     }
 
-    private class BuildStub extends FreeStyleBuild {
-        BuildStub() throws IOException {
+    static class BuildStub extends FreeStyleBuild {
+        private final String BUILD_ID = "unittest";
+
+        BuildStub(JenkinsRule rule) throws IOException {
             super(rule.createFreeStyleProject());
         }
         @Nonnull
@@ -77,7 +77,7 @@ public class CloudCoreoPublisherTest {
         }
     }
 
-    private class ListenerStub extends LogTaskListener {
+    static class ListenerStub extends LogTaskListener {
         ListenerStub() {
             super(null, null);
         }
@@ -90,7 +90,7 @@ public class CloudCoreoPublisherTest {
     @Before
     public void setUp() throws IOException, EndpointUnavailableException {
         publisher = new CloudCoreoPublisherStub(true, true, true);
-        build = new BuildStub();
+        build = new BuildStub(rule);
         publisher.getTeam().getDeployTime().setDeployTimeId("myContext", "myTask");
     }
 
