@@ -11,7 +11,7 @@ public class CloudCoreoBuildAction implements Action, Serializable, StaplerProxy
 
     private static final long serialVersionUID = 520981690971849654L;
     public static final String URL_NAME = "cloudcoreo-deploytime";
-    public static final String ICON_NAME = null;
+    public static final String ICON_NAME = "cc-icon.gif";
     public static final String DISPLAY_NAME = "CloudCoreo DeployTime Results";
 
     private final JSONObject result;
