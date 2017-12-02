@@ -2,13 +2,13 @@ package com.cloudcoreo.plugins.jenkins;
 
 import hudson.FilePath;
 import hudson.model.AbstractProject;
-import hudson.model.Action;
 import hudson.model.Job;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONObject;
 
 import java.io.IOException;
 
+@SuppressWarnings("WeakerAccess")
 public class CloudCoreoProjectAction extends CloudCoreoAbstractAction {
 
     private final static int RESULT_LIMIT = 30;
@@ -62,7 +62,7 @@ public class CloudCoreoProjectAction extends CloudCoreoAbstractAction {
         return 0;
     }
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({"unused", "WeakerAccess"})
     public int getLastTotalCount() throws IOException {
         String[] levels = {"LOW", "MEDIUM", "HIGH"};
         int total = 0;
