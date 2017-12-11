@@ -16,7 +16,6 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
 import java.io.*;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.AccessControlException;
 import java.util.HashMap;
@@ -27,17 +26,20 @@ import java.util.logging.Logger;
 import static java.lang.String.format;
 
 
-public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements Serializable {
+public class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements Serializable {
 
     private final static Logger log = Logger.getLogger(CloudCoreoBuildWrapper.class.getName());
 
     private static final long serialVersionUID = -2815371958535022082L;
 
     private CloudCoreoTeam team;
-
+    private PrintStream logger;
     private String teamName;
     private String customContext;
+    private String contextName;
+    private String taskName;
 
+    @SuppressWarnings("WeakerAccess")
     @DataBoundConstructor
     public CloudCoreoBuildWrapper(String teamName, String context) {
         customContext = context;
@@ -60,22 +62,14 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
 
     @Override
     public void setUp(Context context, Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener,
-                      EnvVars initialEnvironment) throws IOException {
+                      EnvVars initialEnvironment) {
 
-        PrintStream logger = listener.getLogger();
-        team = getDescriptor().getTeam(teamName);
-        team.reloadDeployTime();
+        initializeVariables(listener, initialEnvironment);
 
-        String jobName = initialEnvironment.get("JOB_NAME");
-        String ccContext = (customContext.length() > 0) ? customContext : jobName;
-
-        log.info("Beginning setup for CloudCoreo plugin");
-
-        String task = initialEnvironment.get("BUILD_ID");
-        context.setDisposer(new ContextDisposer(context, ccContext, task, team));
+        context.setDisposer(new CloudCoreoDisposer(context, contextName, taskName, team));
 
         try {
-            team.getDeployTime().setDeployTimeId(ccContext, task);
+            team.getDeployTime().setDeployTimeId(contextName, taskName);
             team.getDeployTime().sendStartContext();
 
             context.env("AWS_EXECUTION_ENV", getAWSExecutionEnvironment());
@@ -84,11 +78,11 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
 
             Map<String, String> vars = new HashMap<>();
             vars.put("ccTeam", team.toString());
-            vars.put("ccTask", task);
-            vars.put("ccContext", ccContext);
+            vars.put("ccTask", taskName);
+            vars.put("ccContext", contextName);
             vars.put("deployTimeID", team.getDeployTime().getDeployTimeInstance().getDeployTimeId());
 
-            ContextDisposer.writeSerializedDataToTempFile(workspace, vars, build.getId());
+            CloudCoreoDisposer.writeSerializedDataToTempFile(workspace, vars, build.getId());
             team.makeAvailable();
         } catch(EndpointUnavailableException e) {
             String message = e.getMessage();
@@ -110,54 +104,21 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
         return "CLOUDCOREO_DEVTIME CLOUDCOREO_DEVTIME_ID/" + team.getDeployTime().getDeployTimeInstance().getDeployTimeId();
     }
 
-    private static class ContextDisposer extends Disposer {
+    private void initializeVariables(TaskListener listener, EnvVars initialEnvironment) {
+        logger = listener.getLogger();
+        team = getTeam();
+        team.loadNewDeployTime();
 
-        private final static Logger log = Logger.getLogger(ContextDisposer.class.getName());
-        private static final long serialVersionUID = 2636645815974839783L;
-        private final String disposerContext;
-        private final String taskId;
-        private final CloudCoreoTeam team;
+        String jobName = initialEnvironment.get("JOB_NAME");
+        contextName = (customContext.length() > 0) ? customContext : jobName;
 
-        @SuppressWarnings("unused")
-        private transient final Context context;
+        log.info("Beginning setup for CloudCoreo plugin");
 
+        taskName = initialEnvironment.get("BUILD_ID");
+    }
 
-        ContextDisposer(Context context, String disposerContext, String taskId, CloudCoreoTeam team) {
-            this.disposerContext = disposerContext;
-            this.taskId = taskId;
-            this.team = team;
-            this.context = context;
-        }
-
-        @Override
-        public void tearDown(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener) {
-            log.info("finishing CloudCoreo analysis");
-
-            Map<String, String> vars = new HashMap<>();
-            vars.put("ccTask", taskId);
-            vars.put("ccContext", disposerContext);
-
-            try {
-                team.getDeployTime().sendStopContext();
-                vars.put("ccTeam", team.toString());
-                writeSerializedDataToTempFile(workspace, vars, build.getId());
-            } catch (URISyntaxException | IOException | NullPointerException e) {
-                String message = "\nThere was a problem in the teardown of the build, skipping DeployTime analysis\n";
-                listener.getLogger().println(message);
-                team.makeUnavailable();
-            }
-        }
-
-        private static void writeSerializedDataToTempFile(FilePath path, Map<String, String> vars, String buildId)
-                throws URISyntaxException, IOException {
-            //create a temp file
-            String fp = "file:///" + path + "/" + buildId + ".ser";
-            File file = new File(new URI(fp.replaceAll(" ", "%20")).getPath());
-            FileOutputStream f = new FileOutputStream(file);
-            ObjectOutputStream s = new ObjectOutputStream(f);
-            s.writeObject(vars);
-            s.close();
-        }
+    CloudCoreoTeam getTeam() {
+        return getDescriptor().getTeam(teamName);
     }
 
     @Extension
@@ -190,6 +151,12 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
 
         @Override
         public boolean configure(StaplerRequest req, JSONObject json) throws FormException {
+            collectTeams(json);
+            save();
+            return true;
+        }
+
+        void collectTeams(JSONObject json) {
             JSONArray jsonTeams;
             if (json.get("team") instanceof JSONArray) {
                 jsonTeams = json.getJSONArray("team");
@@ -211,8 +178,6 @@ public final class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements 
             } catch (IllegalArgumentException e) {
                 log.warning(format("Unable to deserialize CloudCoreo teams fom JSON. %s: %s", e.getClass().getSimpleName(), e.getMessage()));
             }
-            save();
-            return true;
         }
 
         @Override

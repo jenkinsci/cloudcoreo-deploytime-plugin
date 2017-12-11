@@ -33,6 +33,7 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
     private PrintStream logger;
     private FilePath workspacePath;
     private CloudCoreoTeam team;
+    private ResultManager resultManager;
 
     @SuppressWarnings({"unused", "WeakerAccess"})
     public boolean getBlockOnHigh() {
@@ -53,6 +54,21 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
         return team;
     }
 
+    ResultManager getResultManager() {
+        if (resultManager == null) {
+            resultManager = new ResultManager(blockOnLow, blockOnMedium, blockOnHigh, logger);
+        }
+        return resultManager;
+    }
+
+    PrintStream getLogger() {
+        return logger;
+    }
+
+    FilePath getWorkspacePath() {
+        return workspacePath;
+    }
+
     @SuppressWarnings("WeakerAccess")
     @DataBoundConstructor
     public CloudCoreoPublisher(boolean blockOnHigh, boolean blockOnMedium, boolean blockOnLow) {
@@ -60,6 +76,7 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
         this.blockOnMedium = blockOnMedium;
         this.blockOnLow = blockOnLow;
         workspacePath = null;
+        resultManager = null;
     }
 
     @Override
@@ -86,8 +103,7 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
         return (DescriptorImpl) super.getDescriptor();
     }
 
-
-    private Map<String, String> readSerializedDataFromTempFile(String buildId)
+    Map<String, String> readSerializedDataFromTempFile(String buildId)
             throws URISyntaxException, IOException, ClassNotFoundException {
         String fp = "file:///" + workspacePath + "/" + buildId + ".ser";
         File file = new File(new URI(fp.replaceAll(" ", "%20")).getPath());
@@ -107,8 +123,7 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
 
         logger = listener.getLogger();
         workspacePath = workspace;
-        ResultManager resultManager = new ResultManager(blockOnLow, blockOnMedium, blockOnHigh, logger);
-        if (!resultManager.shouldBlockBuild()) {
+        if (!getResultManager().shouldBlockBuild()) {
             // no blocking for failures requested
             return;
         }
@@ -116,17 +131,17 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
         try {
             initializeTeam(build);
             waitForContextRun(build);
-            retrieveAndSetResults(resultManager, build.getId());
+            retrieveAndSetResults(build.getId());
 
-            writeResults(build, resultManager);
-            if (resultManager.hasBlockingFailures()) {
-                resultManager.reportResultsToConsole();
+            writeResults(build);
+            if (getResultManager().hasBlockingFailures()) {
+                getResultManager().reportResultsToConsole();
                 build.setResult(Result.FAILURE);
             }
         } catch (ExecutionFailedException ignore) {}
     }
 
-    private void initializeTeam(Run<?, ?> build) throws ExecutionFailedException {
+    void initializeTeam(Run<?, ?> build) throws ExecutionFailedException {
         Map<String, String> vars;
         try {
             vars = readSerializedDataFromTempFile(build.getId());
@@ -137,7 +152,7 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
             build.setResult(Result.FAILURE);
             String message = "\nERROR: Could not load necessary variables, likely because of a bad serialized file.\n" +
                     ">> Are you sure you enabled CloudCoreo build environment for workload analysis?\n";
-            logger.println(message);
+            getLogger().println(message);
             throw new ExecutionFailedException(null);
         }
 
@@ -190,9 +205,9 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
         Thread.sleep(10000);
     }
 
-    private void retrieveAndSetResults(ResultManager resultManager, String buildId) {
+    void retrieveAndSetResults(String buildId) {
         try {
-            resultManager.setResults(getTeam(), buildId);
+            getResultManager().setResults(getTeam(), buildId);
         } catch (Exception e) {
             String message = "\n>> There was a problem getting results, please contact us and share the following info:";
             outputMessage(message);
@@ -201,10 +216,10 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
         }
     }
 
-    private void writeResults(Run<?, ?> build, ResultManager resultManager) {
+    void writeResults(Run<?, ?> build) {
         try {
-            resultManager.writeResultsToFile(workspacePath, build.getId());
-            JSONObject lastResult = ResultManager.getLastResult(workspacePath);
+            getResultManager().writeResultsToFile(getWorkspacePath(), build.getId());
+            JSONObject lastResult = ResultManager.getLastResult(getWorkspacePath());
             build.addAction(new CloudCoreoBuildAction(build, lastResult));
         } catch (IOException e) {
             String message = "\n>> Error writing results to file, results will not be available for graph\n";
@@ -214,8 +229,8 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
     }
 
     private void outputMessage(String message) {
-        logger.println(message);
-        logger.flush();
+        getLogger().println(message);
+        getLogger().flush();
         log.info(message);
     }
 
