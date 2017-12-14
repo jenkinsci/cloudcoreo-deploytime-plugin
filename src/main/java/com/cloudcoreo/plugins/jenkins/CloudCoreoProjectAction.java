@@ -17,6 +17,7 @@ public class CloudCoreoProjectAction extends CloudCoreoAbstractAction {
     private final Job<?, ?> job;
     private JSONArray results;
     private JSONObject lastResult;
+    private FilePath resultsFilePath;
 
     CloudCoreoProjectAction(AbstractProject<?, ?> project) {
         this((Job) project);
@@ -26,6 +27,7 @@ public class CloudCoreoProjectAction extends CloudCoreoAbstractAction {
         this.job = job;
         project = (job instanceof AbstractProject) ? (AbstractProject) job : null;
         results = null;
+        resultsFilePath = null;
         lastResult = new JSONObject();
     }
 
@@ -34,7 +36,7 @@ public class CloudCoreoProjectAction extends CloudCoreoAbstractAction {
         if (this.project == null) {
             return new JSONArray();
         }
-        results = ResultManager.getAllResults(getWorkspacePath());
+        results = ResultManager.getAllResults(getResultsPath());
         if (results.size() > RESULT_LIMIT) {
             int lastIndex = results.size() - 1;
             results = JSONArray.fromObject(results.subList(lastIndex - RESULT_LIMIT, lastIndex));
@@ -72,7 +74,10 @@ public class CloudCoreoProjectAction extends CloudCoreoAbstractAction {
         return total;
     }
 
-    FilePath getWorkspacePath() {
-        return this.project.getWorkspace();
+    FilePath getResultsPath() {
+        if (resultsFilePath == null) {
+            resultsFilePath = new FilePath(this.project.getBuildDir());
+        }
+        return resultsFilePath;
     }
 }
