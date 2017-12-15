@@ -51,16 +51,20 @@ class CloudCoreoDisposer extends SimpleBuildWrapper.Disposer {
         }
     }
 
-    static void writeSerializedDataToTempFile(String teamString, Run<?, ?> build)
+    void writeSerializedDataToTempFile(String teamString, Run<?, ?> build)
             throws URISyntaxException, IOException {
         //create a temp file
-        String directory = build.getParent().getBuildDir().toString().replaceAll(" ", "%20") + "/";
+        String directory = getBuildDirectory(build);
         Path fullPath = Paths.get(directory + build.getId() + "/team.ser");
         Files.write(fullPath, teamString.getBytes());
         removePreviousTempFileIfExists(build.getPreviousBuild(), directory);
     }
 
-    private static void removePreviousTempFileIfExists(Run<?, ?> previousBuild, String fileDirectory)
+    String getBuildDirectory(Run<?, ?> build) {
+        return build.getParent().getBuildDir().toString().replaceAll(" ", "%20") + "/";
+    }
+
+    private void removePreviousTempFileIfExists(Run<?, ?> previousBuild, String fileDirectory)
             throws URISyntaxException, IOException {
         if (previousBuild != null) {
             Path filePath = Paths.get(fileDirectory + previousBuild.getId() + "/team.ser");

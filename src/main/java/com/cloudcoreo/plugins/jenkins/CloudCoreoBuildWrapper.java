@@ -39,12 +39,14 @@ public class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements Serial
     private String customContext;
     private String contextName;
     private String taskName;
+    private CloudCoreoDisposer disposer;
 
     @SuppressWarnings("WeakerAccess")
     @DataBoundConstructor
     public CloudCoreoBuildWrapper(String teamName, String context) {
         customContext = context;
         this.teamName = teamName;
+        disposer = null;
     }
     @Override
     public DescriptorImpl getDescriptor() {
@@ -67,7 +69,8 @@ public class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements Serial
 
         initializeVariables(listener, initialEnvironment);
 
-        context.setDisposer(new CloudCoreoDisposer(context, contextName, taskName, team));
+        disposer = new CloudCoreoDisposer(context, contextName, taskName, team);
+        context.setDisposer(getDisposer());
 
         try {
             team.getDeployTime().setDeployTimeId(contextName, taskName);
@@ -76,7 +79,7 @@ public class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements Serial
             context.env("AWS_EXECUTION_ENV", getAWSExecutionEnvironment());
             log.info("AWS_EXECUTION_ENV has been set");
 
-            CloudCoreoDisposer.writeSerializedDataToTempFile(team.toString(), build);
+            getDisposer().writeSerializedDataToTempFile(team.toString(), build);
             team.makeAvailable();
         } catch(EndpointUnavailableException e) {
             String message = e.getMessage();
@@ -113,6 +116,10 @@ public class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements Serial
 
     CloudCoreoTeam getTeam() {
         return getDescriptor().getTeam(teamName);
+    }
+
+    CloudCoreoDisposer getDisposer() {
+        return disposer;
     }
 
     @Extension

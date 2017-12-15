@@ -23,14 +23,14 @@ public class ResultManagerTest {
 
     @Before
     public void setUp() throws EndpointUnavailableException, IOException {
-        buildID = "unittest";
+        buildID = "1";
         team = new CloudCoreoTeamTest.CloudCoreoTeamStub();
         team.getDeployTime().setDeployTimeId("myContext", "myTask");
 
         manager = new ResultManagerStub(false, true, true);
         manager.setResults(team, buildID);
 
-        testFilePath = new FilePath(new File("/tmp/"));
+        testFilePath = CloudCoreoPublisherTest.BUILD_PATH;
         manager.writeResultsToFile(testFilePath, buildID);
     }
 

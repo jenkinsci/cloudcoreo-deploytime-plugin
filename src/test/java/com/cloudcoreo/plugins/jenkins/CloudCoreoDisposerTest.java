@@ -17,22 +17,32 @@ public class CloudCoreoDisposerTest {
 
     @Rule
     public JenkinsRule rule = new JenkinsRule();
-    static final FilePath PATH = new FilePath(new File("/tmp/"));
     private CloudCoreoTeam team;
     private SimpleBuildWrapper.Disposer disposer;
     private Run<?, ?> build;
+
+    static class DisposerStub extends CloudCoreoDisposer {
+        DisposerStub(CloudCoreoTeam team) {
+            super(null, null, null, team);
+        }
+
+        @Override
+        String getBuildDirectory(Run<?, ?> build) {
+            return "/tmp/jenkins/";
+        }
+    }
 
     @Before
     public void setUp() throws EndpointUnavailableException, IOException {
         team = new CloudCoreoTeamTest.CloudCoreoTeamStub();
         team.getDeployTime().setDeployTimeId("myContext", "myTask");
-        disposer = new CloudCoreoDisposer(null, null, null, team);
+        disposer = new DisposerStub(team);
         build = new CloudCoreoPublisherTest.BuildStub(rule);
     }
 
     @Test
     public void tearDownContextDisposer() throws IOException, InterruptedException {
-        disposer.tearDown(build, PATH, null, new CloudCoreoPublisherTest.ListenerStub());
+        disposer.tearDown(build, null, null, new CloudCoreoPublisherTest.ListenerStub());
         Assert.assertTrue(team.isAvailable());
     }
 }

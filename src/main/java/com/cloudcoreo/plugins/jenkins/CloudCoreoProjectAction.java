@@ -14,7 +14,6 @@ public class CloudCoreoProjectAction extends CloudCoreoAbstractAction {
     private final static int RESULT_LIMIT = 30;
     private final AbstractProject<?, ?> project;
     @SuppressWarnings("FieldCanBeLocal")
-    private final Job<?, ?> job;
     private JSONArray results;
     private JSONObject lastResult;
     private FilePath resultsFilePath;
@@ -24,7 +23,6 @@ public class CloudCoreoProjectAction extends CloudCoreoAbstractAction {
     }
 
     private CloudCoreoProjectAction(Job<?, ?> job) {
-        this.job = job;
         project = (job instanceof AbstractProject) ? (AbstractProject) job : null;
         results = null;
         resultsFilePath = null;
