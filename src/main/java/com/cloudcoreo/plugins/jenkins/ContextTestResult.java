@@ -83,6 +83,23 @@ final class ContextTestResult implements Serializable {
         parseResults();
     }
 
+    JSONObject getJSONResults() {
+        JSONObject results = new JSONObject();
+        results.put("name", getName());
+        results.put("region", getRegion());
+        results.put("service", getService());
+        results.put("displayName", getDisplayName());
+        results.put("description", getDescription());
+        results.put("category", getCategory());
+        results.put("suggestedAction", getSuggestedAction());
+        results.put("timestamp", getTimestamp());
+        results.put("level", getLevel());
+        results.put("link", getLink());
+        results.put("metaTags", JSONObject.fromObject(getMetaTags()));
+        results.put("violatingObjects", JSONArray.fromObject(getViolatingObjects()));
+        return results;
+    }
+
     private void parseResults() {
         JSONObject violationObject = null;
         String keyId;
@@ -152,7 +169,7 @@ final class ContextTestResult implements Serializable {
         category = violationObject.getString("category");
         description = violationObject.getString("description");
         displayName = violationObject.getString("display_name");
-        level = violationObject.getString("level");
+        level = violationObject.getString("level").toUpperCase();
         link = violationObject.getString("link");
     }
 

@@ -15,7 +15,7 @@ import java.io.IOException;
 @SuppressWarnings("unused")
 public class DeployTimeTest {
 
-    class DeployTimeStub extends DeployTime {
+    static class DeployTimeStub extends DeployTime {
 
         private static final int DOMAIN_PORT = 0;
         private static final String TEAM_ID = "teamName";

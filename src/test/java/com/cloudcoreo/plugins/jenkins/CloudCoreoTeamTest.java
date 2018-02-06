@@ -23,6 +23,17 @@ public class CloudCoreoTeamTest {
             "}"
     );
 
+    static class CloudCoreoTeamStub extends CloudCoreoTeam {
+        CloudCoreoTeamStub() {
+            super(SETUP_PARAMS);
+        }
+
+        @Override
+        DeployTime loadNewDeployTime() {
+            return new DeployTimeTest.DeployTimeStub();
+        }
+    }
+
     @Before
     public void setUpTeam() {
         team = new CloudCoreoTeam(SETUP_PARAMS);
@@ -31,7 +42,7 @@ public class CloudCoreoTeamTest {
     @Test
     public void ensureDeployTimeLoadAndReload() {
         DeployTime loadedDeployTime = team.getDeployTime();
-        team.reloadDeployTime();
+        team.loadNewDeployTime();
         DeployTime reloadedDeployTime = team.getDeployTime();
         Assert.assertNotNull(loadedDeployTime);
         Assert.assertTrue(loadedDeployTime != reloadedDeployTime);
@@ -49,8 +60,23 @@ public class CloudCoreoTeamTest {
     public void encodeAndDecodeTeam() throws IOException, ClassNotFoundException {
         String encodedTeam = team.toString();
         CloudCoreoTeam decodedTeam = CloudCoreoTeam.getTeamFromString(encodedTeam);
-        decodedTeam.reloadDeployTime();
+        decodedTeam.loadNewDeployTime();
         Assert.assertNotNull(encodedTeam);
         Assert.assertTrue(team.equals(decodedTeam));
+    }
+
+    @Test
+    public void ensureConstructorEquality() {
+        CloudCoreoTeam dataBoundTeam = new CloudCoreoTeam(
+                SETUP_PARAMS.getString("domain"),
+                SETUP_PARAMS.getString("domainProtocol"),
+                SETUP_PARAMS.getInt("domainPort"),
+                SETUP_PARAMS.getString("teamName"),
+                SETUP_PARAMS.getString("teamId"),
+                SETUP_PARAMS.getString("teamKeyId"),
+                SETUP_PARAMS.getString("teamSecretKey")
+        );
+        dataBoundTeam.loadNewDeployTime();
+        Assert.assertTrue(team.equals(dataBoundTeam));
     }
 }

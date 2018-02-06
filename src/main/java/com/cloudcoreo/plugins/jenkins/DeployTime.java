@@ -77,6 +77,10 @@ public class DeployTime implements Serializable {
         return 300;
     }
 
+    boolean contextRunStarted() {
+        return hasContextRunStarted;
+    }
+
     private Charset getEncoding() { return Charset.forName("UTF-8"); }
 
     private String getEndpointURL() {
@@ -252,9 +256,11 @@ public class DeployTime implements Serializable {
             String message = "CloudCoreo DeployTime job has an error or been manually terminated";
             throw new ExecutionFailedException(message);
         }
-        hasContextRunStarted = job.hasRunningJobs();
+        if (!hasContextRunStarted) {
+            hasContextRunStarted = job.hasRunningJobs();
+        }
         log.info("found jobs?: " + job.hasRunningJobs());
-        return hasContextRunStarted;
+        return job.hasRunningJobs();
     }
 
     boolean contextRunTimedOut() {
