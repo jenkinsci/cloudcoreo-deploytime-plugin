@@ -13,8 +13,9 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.Map;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.logging.Logger;
 
 class CloudCoreoDisposer extends SimpleBuildWrapper.Disposer {
@@ -40,14 +41,9 @@ class CloudCoreoDisposer extends SimpleBuildWrapper.Disposer {
     public void tearDown(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener) {
         log.info("finishing CloudCoreo analysis");
 
-        Map<String, String> vars = new HashMap<>();
-        vars.put("ccTask", taskId);
-        vars.put("ccContext", disposerContext);
-
         try {
             team.getDeployTime().sendStopContext();
-            vars.put("ccTeam", team.toString());
-            writeSerializedDataToTempFile(workspace, vars, build.getId());
+            writeSerializedDataToTempFile(team.toString(), build);
         } catch (URISyntaxException | IOException | NullPointerException e) {
             String message = "\nThere was a problem in the teardown of the build, skipping DeployTime analysis\n";
             listener.getLogger().println(message);
@@ -55,14 +51,26 @@ class CloudCoreoDisposer extends SimpleBuildWrapper.Disposer {
         }
     }
 
-    static void writeSerializedDataToTempFile(FilePath path, Map<String, String> vars, String buildId)
+    void writeSerializedDataToTempFile(String teamString, Run<?, ?> build)
             throws URISyntaxException, IOException {
         //create a temp file
-        String fp = "file:///" + path + "/" + buildId + ".ser";
-        File file = new File(new URI(fp.replaceAll(" ", "%20")).getPath());
-        FileOutputStream f = new FileOutputStream(file);
-        ObjectOutputStream s = new ObjectOutputStream(f);
-        s.writeObject(vars);
-        s.close();
+        String directory = getBuildDirectory(build);
+        Path fullPath = Paths.get(directory + build.getId() + "/team.ser");
+        Files.write(fullPath, teamString.getBytes());
+        removePreviousTempFileIfExists(build.getPreviousBuild(), directory);
+    }
+
+    String getBuildDirectory(Run<?, ?> build) {
+        return build.getParent().getBuildDir().toString().replaceAll(" ", "%20") + "/";
+    }
+
+    private void removePreviousTempFileIfExists(Run<?, ?> previousBuild, String fileDirectory)
+            throws URISyntaxException, IOException {
+        if (previousBuild != null) {
+            Path filePath = Paths.get(fileDirectory + previousBuild.getId() + "/team.ser");
+            if (Files.exists(filePath)) {
+                Files.delete(filePath);
+            }
+        }
     }
 }

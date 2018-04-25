@@ -19,8 +19,8 @@ public class CloudCoreoProjectActionTest {
         }
 
         @Override
-        FilePath getWorkspacePath() {
-            return new FilePath(new File("/tmp/"));
+        FilePath getResultsPath() {
+            return CloudCoreoPublisherTest.BUILD_PATH;
         }
     }
 

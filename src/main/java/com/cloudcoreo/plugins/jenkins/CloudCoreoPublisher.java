@@ -15,8 +15,10 @@ import org.kohsuke.stapler.DataBoundConstructor;
 
 import javax.annotation.Nonnull;
 import java.io.*;
-import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.logging.Logger;
 
@@ -31,7 +33,7 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
     private boolean blockOnMedium;
     private boolean blockOnLow;
     private PrintStream logger;
-    private FilePath workspacePath;
+    private FilePath buildPath;
     private CloudCoreoTeam team;
     private ResultManager resultManager;
 
@@ -65,8 +67,8 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
         return logger;
     }
 
-    FilePath getWorkspacePath() {
-        return workspacePath;
+    FilePath getResultsPath() {
+        return buildPath;
     }
 
     @SuppressWarnings("WeakerAccess")
@@ -75,7 +77,7 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
         this.blockOnHigh = blockOnHigh;
         this.blockOnMedium = blockOnMedium;
         this.blockOnLow = blockOnLow;
-        workspacePath = null;
+        buildPath = null;
         resultManager = null;
     }
 
@@ -103,26 +105,22 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
         return (DescriptorImpl) super.getDescriptor();
     }
 
-    Map<String, String> readSerializedDataFromTempFile(String buildId)
+    String readSerializedTeamFromTempFile(String buildId)
             throws URISyntaxException, IOException, ClassNotFoundException {
-        String fp = "file:///" + workspacePath + "/" + buildId + ".ser";
-        File file = new File(new URI(fp.replaceAll(" ", "%20")).getPath());
-        FileInputStream f = new FileInputStream(file);
-        ObjectInputStream objectStream = new ObjectInputStream(f);
+        String fp = buildPath + "/" + buildId + "/team.ser";
+        Path filePath = Paths.get(fp.replaceAll(" ", "%20"));
 
-        @SuppressWarnings("unchecked")
-        Map<String, String> vars = (Map<String, String>) objectStream.readObject();
-
-        objectStream.close();
-        return vars;
+        // This should be a single line, but we'll collect as a list and join as string with no delimiter
+        List<String> teamData = Files.readAllLines(filePath);
+        Files.delete(filePath);
+        return String.join("", teamData);
     }
 
     @SuppressWarnings("NullableProblems")
     @Override
     public void perform(Run<?, ?> build, FilePath workspace, Launcher launcher, TaskListener listener) {
-
         logger = listener.getLogger();
-        workspacePath = workspace;
+        buildPath = new FilePath(build.getParent().getBuildDir());
         if (!getResultManager().shouldBlockBuild()) {
             // no blocking for failures requested
             return;
@@ -142,12 +140,8 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
     }
 
     void initializeTeam(Run<?, ?> build) throws ExecutionFailedException {
-        Map<String, String> vars;
         try {
-            vars = readSerializedDataFromTempFile(build.getId());
-            String teamString = vars.get("ccTeam");
-
-            team = CloudCoreoTeam.getTeamFromString(teamString);
+            team = CloudCoreoTeam.getTeamFromString(readSerializedTeamFromTempFile(build.getId()));
         } catch(URISyntaxException | IOException | ClassNotFoundException ignore) {
             build.setResult(Result.FAILURE);
             String message = "\nERROR: Could not load necessary variables, likely because of a bad serialized file.\n" +
@@ -218,8 +212,8 @@ public class CloudCoreoPublisher extends Notifier implements SimpleBuildStep {
 
     void writeResults(Run<?, ?> build) {
         try {
-            getResultManager().writeResultsToFile(getWorkspacePath(), build.getId());
-            JSONObject lastResult = ResultManager.getLastResult(getWorkspacePath());
+            getResultManager().writeResultsToFile(getResultsPath(), build.getId());
+            JSONObject lastResult = ResultManager.getLastResult(getResultsPath());
             build.addAction(new CloudCoreoBuildAction(build, lastResult));
         } catch (IOException e) {
             String message = "\n>> Error writing results to file, results will not be available for graph\n";
