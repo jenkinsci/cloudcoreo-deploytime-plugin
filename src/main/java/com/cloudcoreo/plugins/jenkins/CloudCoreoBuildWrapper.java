@@ -15,10 +15,11 @@ import org.kohsuke.stapler.DataBoundConstructor;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.Serializable;
 import java.net.URISyntaxException;
 import java.security.AccessControlException;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -38,12 +39,14 @@ public class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements Serial
     private String customContext;
     private String contextName;
     private String taskName;
+    private CloudCoreoDisposer disposer;
 
     @SuppressWarnings("WeakerAccess")
     @DataBoundConstructor
     public CloudCoreoBuildWrapper(String teamName, String context) {
         customContext = context;
         this.teamName = teamName;
+        disposer = null;
     }
     @Override
     public DescriptorImpl getDescriptor() {
@@ -66,23 +69,17 @@ public class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements Serial
 
         initializeVariables(listener, initialEnvironment);
 
-        context.setDisposer(new CloudCoreoDisposer(context, contextName, taskName, team));
+        disposer = new CloudCoreoDisposer(context, contextName, taskName, team);
+        context.setDisposer(getDisposer());
 
         try {
             team.getDeployTime().setDeployTimeId(contextName, taskName);
             team.getDeployTime().sendStartContext();
 
             context.env("AWS_EXECUTION_ENV", getAWSExecutionEnvironment());
-
             log.info("AWS_EXECUTION_ENV has been set");
 
-            Map<String, String> vars = new HashMap<>();
-            vars.put("ccTeam", team.toString());
-            vars.put("ccTask", taskName);
-            vars.put("ccContext", contextName);
-            vars.put("deployTimeID", team.getDeployTime().getDeployTimeInstance().getDeployTimeId());
-
-            CloudCoreoDisposer.writeSerializedDataToTempFile(workspace, vars, build.getId());
+            getDisposer().writeSerializedDataToTempFile(team.toString(), build);
             team.makeAvailable();
         } catch(EndpointUnavailableException e) {
             String message = e.getMessage();
@@ -121,6 +118,10 @@ public class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements Serial
         return getDescriptor().getTeam(teamName);
     }
 
+    CloudCoreoDisposer getDisposer() {
+        return disposer;
+    }
+
     @Extension
     public static final class DescriptorImpl extends BuildWrapperDescriptor {
         @SuppressWarnings("unused")
@@ -129,7 +130,7 @@ public class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements Serial
             else return FormValidation.error("There's a problem here");
         }
 
-        @SuppressWarnings("unused")
+        @SuppressWarnings({"unused", "WeakerAccess"})
         public Map<String, CloudCoreoTeam> getTeams() {
             return teams;
         }
@@ -142,6 +143,7 @@ public class CloudCoreoBuildWrapper extends SimpleBuildWrapper implements Serial
         private volatile Map<String, CloudCoreoTeam> teams = new LinkedHashMap<>();
 
 
+        @SuppressWarnings("WeakerAccess")
         @DataBoundConstructor
         public DescriptorImpl() {
             super(CloudCoreoBuildWrapper.class);

@@ -2,10 +2,7 @@ package com.cloudcoreo.plugins.jenkins;
 
 import com.cloudcoreo.plugins.jenkins.exceptions.EndpointUnavailableException;
 import hudson.FilePath;
-import hudson.Launcher;
-import hudson.Proc;
 import hudson.model.*;
-import hudson.remoting.Channel;
 import hudson.util.LogTaskListener;
 import org.junit.*;
 import org.junit.runners.MethodSorters;
@@ -14,12 +11,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import javax.annotation.Nonnull;
 import java.io.File;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.PrintStream;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 @SuppressWarnings("unused")
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
@@ -29,6 +21,7 @@ public class CloudCoreoPublisherTest {
     public JenkinsRule rule = new JenkinsRule();
     private CloudCoreoPublisher publisher;
     private FreeStyleBuild build;
+    static final FilePath BUILD_PATH = new FilePath(new File("/tmp/jenkins/"));
 
     private class CloudCoreoPublisherStub extends CloudCoreoPublisher {
 
@@ -47,10 +40,8 @@ public class CloudCoreoPublisherTest {
         }
 
         @Override
-        Map<String, String> readSerializedDataFromTempFile(String buildID) {
-            Map<String, String> response = new HashMap<>();
-            response.put("ccTeam", new CloudCoreoTeamTest.CloudCoreoTeamStub().toString());
-            return response;
+        String readSerializedTeamFromTempFile(String buildID) {
+            return new CloudCoreoTeamTest.CloudCoreoTeamStub().toString();
         }
 
         @Override
@@ -59,13 +50,13 @@ public class CloudCoreoPublisherTest {
         }
 
         @Override
-        FilePath getWorkspacePath() {
-            return new FilePath(new File("/tmp/"));
+        FilePath getResultsPath() {
+            return BUILD_PATH;
         }
     }
 
     static class BuildStub extends FreeStyleBuild {
-        private final String BUILD_ID = "unittest";
+        private final String BUILD_ID = "1";
 
         BuildStub(JenkinsRule rule) throws IOException {
             super(rule.createFreeStyleProject());

@@ -33,6 +33,11 @@ public class CloudCoreoBuildWrapperTest {
         CloudCoreoTeam getTeam() {
             return new CloudCoreoTeamTest.CloudCoreoTeamStub();
         }
+
+        @Override
+        CloudCoreoDisposer getDisposer() {
+            return new CloudCoreoDisposerTest.DisposerStub(getTeam());
+        }
     }
 
     @Before
@@ -51,11 +56,10 @@ public class CloudCoreoBuildWrapperTest {
     public void runSetUp() throws IOException {
         SimpleBuildWrapper.Context context = new SimpleBuildWrapper.Context();
         CloudCoreoPublisherTest.BuildStub build = new CloudCoreoPublisherTest.BuildStub(rule);
-        FilePath path = CloudCoreoDisposerTest.PATH;
         TaskListener listener = new CloudCoreoPublisherTest.ListenerStub();
         EnvVars env = new EnvVars();
 
-        buildWrapperStub.setUp(context, build, path, null, listener, env);
+        buildWrapperStub.setUp(context, build, null, null, listener, env);
         Assert.assertTrue(buildWrapperStub.getTeam().isAvailable());
     }
 

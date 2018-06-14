@@ -9,11 +9,10 @@ import java.io.File;
 import java.io.IOException;
 
 public class ResultManagerTest {
-
-    private String buildID;
     private ResultManager manager;
     private FilePath testFilePath;
     private CloudCoreoTeam team;
+    static String BUILD_ID = "1";
 
     static class ResultManagerStub extends ResultManager {
         ResultManagerStub(boolean blockOnLow, boolean blockOnMedium, boolean blockOnHigh) {
@@ -23,21 +22,20 @@ public class ResultManagerTest {
 
     @Before
     public void setUp() throws EndpointUnavailableException, IOException {
-        buildID = "unittest";
         team = new CloudCoreoTeamTest.CloudCoreoTeamStub();
         team.getDeployTime().setDeployTimeId("myContext", "myTask");
 
         manager = new ResultManagerStub(false, true, true);
-        manager.setResults(team, buildID);
+        manager.setResults(team, BUILD_ID);
 
-        testFilePath = new FilePath(new File("/tmp/"));
-        manager.writeResultsToFile(testFilePath, buildID);
+        testFilePath = CloudCoreoPublisherTest.BUILD_PATH;
+        manager.writeResultsToFile(testFilePath, BUILD_ID);
     }
 
     @Test
     public void ensureAccurateBlocking() {
         ResultManager blockedManager = new ResultManagerStub(true, false, true);
-        blockedManager.setResults(team, buildID);
+        blockedManager.setResults(team, BUILD_ID);
         Assert.assertFalse(manager.hasBlockingFailures());
         Assert.assertTrue(blockedManager.hasBlockingFailures());
     }
