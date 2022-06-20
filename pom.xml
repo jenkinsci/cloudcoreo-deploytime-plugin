@@ -36,7 +36,7 @@
 
     <properties>
         <!-- Baseline Jenkins version you use to build the plugin. Users must have this version or newer to run. -->
-        <jenkins.version>1.651.3</jenkins.version>
+        <jenkins.version>2.334</jenkins.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven-release-plugin.version>2.5.3</maven-release-plugin.version>
         <findbugs-maven-plugin.version>3.0.3</findbugs-maven-plugin.version>
